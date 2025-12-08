@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/table'
 import { Pagination } from '@/components/ui/pagination'
 import { css } from '@/styled-system/css'
-import { grid, hstack, vstack, center, statRow } from '@/styled-system/patterns'
+import { grid, hstack, center, statRow } from '@/styled-system/patterns'
 
 export default function AddressDetailPage() {
 	const [mounted, setMounted] = useState(false)
@@ -89,7 +89,7 @@ export default function AddressDetailPage() {
 
 	if (!mounted || (isValidAddr && statsLoading)) {
 		return (
-			<div className={vstack({ gap: '4' })}>
+			<div className={css({ display: 'flex', flexDirection: 'column', gap: '4', w: 'full' })}>
 				<Skeleton className={css({ h: '8', w: '48' })} />
 				<Skeleton className={css({ h: '32', w: 'full' })} />
 				<Skeleton className={css({ h: '96', w: 'full' })} />
@@ -99,7 +99,7 @@ export default function AddressDetailPage() {
 
 	if (!isValidAddr) {
 		return (
-			<div className={vstack({ gap: '4' })}>
+			<div className={css({ display: 'flex', flexDirection: 'column', gap: '4', w: 'full' })}>
 				<Link to="/" className={hstack({ gap: '2', color: 'fg.muted', _hover: { color: 'accent.default' } })}>
 					<ArrowLeft className={css({ w: 'icon.sm', h: 'icon.sm' })} />
 					Back to Home
@@ -122,7 +122,7 @@ export default function AddressDetailPage() {
 
 	if (!stats) {
 		return (
-			<div className={vstack({ gap: '4' })}>
+			<div className={css({ display: 'flex', flexDirection: 'column', gap: '4', w: 'full' })}>
 				<Link to="/" className={hstack({ gap: '2', color: 'fg.muted', _hover: { color: 'accent.default' } })}>
 					<ArrowLeft className={css({ w: 'icon.sm', h: 'icon.sm' })} />
 					Back to Home
@@ -141,7 +141,7 @@ export default function AddressDetailPage() {
 	}
 
 	return (
-		<div className={vstack({ gap: '6' })}>
+		<div className={css({ display: 'flex', flexDirection: 'column', gap: '6', w: 'full' })}>
 			{/* Header */}
 			<div>
 				<Link to="/" className={hstack({ gap: '2', color: 'fg.muted', mb: '4', _hover: { color: 'accent.default' } })}>
@@ -197,9 +197,9 @@ export default function AddressDetailPage() {
 			</div>
 
 			{/* Account Overview - Stats + Balances side by side */}
-			<div className={grid({ columns: { base: 1, md: 2 }, gap: '4' })}>
+			<div className={grid({ columns: { base: 1, md: 2 }, gap: '4', w: 'full' })}>
 				{/* Left: Compact Stats */}
-				<div className={vstack({ gap: '2' })}>
+				<div className={css({ display: 'flex', flexDirection: 'column', gap: '2', w: 'full' })}>
 					<div className={statRow()}>
 						<span className={hstack({ gap: '2', color: 'fg.muted', fontSize: 'sm' })}>
 							<Activity className={css({ w: 'icon.sm', h: 'icon.sm' })} />
@@ -246,12 +246,12 @@ export default function AddressDetailPage() {
 					</CardHeader>
 					<CardContent className={css({ pt: '0' })}>
 						{balancesLoading ? (
-							<div className={vstack({ gap: '2' })}>
+							<div className={css({ display: 'flex', flexDirection: 'column', gap: '2', w: 'full' })}>
 								<Skeleton className={css({ h: '10', w: 'full' })} />
 								<Skeleton className={css({ h: '10', w: 'full' })} />
 							</div>
 						) : balances && balances.length > 0 ? (
-							<div className={vstack({ gap: '2' })}>
+							<div className={css({ display: 'flex', flexDirection: 'column', gap: '2', w: 'full' })}>
 								{balances.map((balance: TokenBalance) => {
 									const metadata = getDenomMetadata(balance.denom)
 									const formattedAmount = formatDenomAmount(balance.amount, balance.denom, { maxDecimals: 6 })
@@ -280,7 +280,7 @@ export default function AddressDetailPage() {
 				</CardHeader>
 				<CardContent>
 					{txLoading ? (
-						<div className={vstack({ gap: '3' })}>
+						<div className={css({ display: 'flex', flexDirection: 'column', gap: '3', w: 'full' })}>
 							<Skeleton className={css({ h: '12', w: 'full' })} />
 							<Skeleton className={css({ h: '12', w: 'full' })} />
 							<Skeleton className={css({ h: '12', w: 'full' })} />

@@ -14,7 +14,7 @@ import { formatNumber, formatTimestamp, formatHash, formatTimeAgo } from '@/lib/
 import { Skeleton } from '@/components/ui/skeleton'
 import { Pagination } from '@/components/ui/pagination'
 import { css } from '@/styled-system/css'
-import { vstack, hstack, grid } from '@/styled-system/patterns'
+import { hstack, grid } from '@/styled-system/patterns'
 
 export default function BlocksPage() {
 	const [page, setPage] = useState(0)
@@ -46,8 +46,8 @@ export default function BlocksPage() {
 	}
 
 	return (
-		<div className={vstack({ gap: '6' })}>
-			<div className={hstack({ justify: 'space-between' })}>
+		<div className={css({ display: 'flex', flexDirection: 'column', gap: '6', w: 'full' })}>
+			<div className={hstack({ justify: 'space-between', w: 'full' })}>
 				<h1 className={css({ fontSize: '3xl', fontWeight: 'bold' })}>Blocks</h1>
 				<Button
 					variant={showFilters ? 'default' : 'outline'}
@@ -74,8 +74,8 @@ export default function BlocksPage() {
 						</div>
 					</CardHeader>
 					<CardContent>
-						<div className={grid({ columns: { base: 1, md: 3 }, gap: '4' })}>
-							<div className={vstack({ gap: '2' })}>
+						<div className={grid({ columns: { base: 1, md: 3 }, gap: '4', w: 'full' })}>
+							<div className={css({ display: 'flex', flexDirection: 'column', gap: '2' })}>
 								<Label htmlFor="minTxCount">Minimum Transactions</Label>
 								<Input
 									id="minTxCount"
@@ -89,7 +89,7 @@ export default function BlocksPage() {
 									}}
 								/>
 							</div>
-							<div className={vstack({ gap: '2' })}>
+							<div className={css({ display: 'flex', flexDirection: 'column', gap: '2' })}>
 								<Label htmlFor="fromDate">From Date</Label>
 								<Input
 									id="fromDate"
@@ -101,7 +101,7 @@ export default function BlocksPage() {
 									}}
 								/>
 							</div>
-							<div className={vstack({ gap: '2' })}>
+							<div className={css({ display: 'flex', flexDirection: 'column', gap: '2' })}>
 								<Label htmlFor="toDate">To Date</Label>
 								<Input
 									id="toDate"
