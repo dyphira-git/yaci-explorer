@@ -28,7 +28,7 @@ export function DashboardMetrics() {
 	const avgBlockTime = stats?.avgBlockTime ?? 0
 
 	return (
-		<div className={grid({ columns: { base: 1, md: 2, lg: 4 }, gap: '4' })}>
+		<div className={grid({ columns: { base: 1, md: 2, lg: 4 }, gap: '4', w: 'full' })}>
 			<Card>
 				<CardHeader className={hstack({ justify: 'space-between', pb: '2' })}>
 					<CardTitle className={css({ fontSize: 'sm', fontWeight: 'medium' })}>Latest Block</CardTitle>

@@ -7,6 +7,7 @@ transform() {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
+    w: "full",
     py: "3",
     borderBottomWidth: "1px",
     borderColor: "border.default",

@@ -10,7 +10,7 @@ import { formatTimeAgo, formatHash, getTransactionStatus } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DashboardMetrics } from '@/components/common/DashboardMetrics'
 import { css } from '@/styled-system/css'
-import { grid, hstack, vstack, listItem } from '@/styled-system/patterns'
+import { grid, hstack, listItem } from '@/styled-system/patterns'
 
 export default function DashboardPage() {
 	const [mounted, setMounted] = useState(false)
@@ -43,7 +43,7 @@ export default function DashboardPage() {
 
 	if (mounted && (blocksError || txError)) {
 		return (
-			<div className={vstack({ gap: '4' })}>
+			<div className={css({ display: 'flex', flexDirection: 'column', gap: '4', w: 'full' })}>
 				<h2 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'red.600' })}>Error Loading Data</h2>
 				{blocksError && <p className={css({ color: 'red.500' })}>Blocks error: {String(blocksError)}</p>}
 				{txError && <p className={css({ color: 'red.500' })}>Transactions error: {String(txError)}</p>}
@@ -53,10 +53,10 @@ export default function DashboardPage() {
 	}
 
 	return (
-		<div className={vstack({ gap: '8' })}>
+		<div className={css({ display: 'flex', flexDirection: 'column', gap: '8', w: 'full' })}>
 			<DashboardMetrics />
 
-			<div className={grid({ columns: { base: 1, lg: 2 }, gap: '8' })}>
+			<div className={grid({ columns: { base: 1, lg: 2 }, gap: '8', w: 'full' })}>
 				<Card>
 					<CardHeader className={hstack({ justify: 'space-between' })}>
 						<CardTitle>Recent Blocks</CardTitle>
@@ -65,7 +65,7 @@ export default function DashboardPage() {
 						</Link>
 					</CardHeader>
 					<CardContent>
-						<div className={vstack({ gap: '4' })}>
+						<div className={css({ display: 'flex', flexDirection: 'column', gap: '4', w: 'full' })}>
 							{blocksLoading ? (
 								Array.from({ length: 5 }).map((_, i) => (
 									<Skeleton key={i} className={css({ h: '16', w: 'full' })} />
@@ -106,7 +106,7 @@ export default function DashboardPage() {
 						</Link>
 					</CardHeader>
 					<CardContent>
-						<div className={vstack({ gap: '4' })}>
+						<div className={css({ display: 'flex', flexDirection: 'column', gap: '4', w: 'full' })}>
 							{txLoading ? (
 								Array.from({ length: 5 }).map((_, i) => (
 									<Skeleton key={i} className={css({ h: '16', w: 'full' })} />
