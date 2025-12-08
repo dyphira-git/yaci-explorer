@@ -446,12 +446,14 @@ const styles = {
 	container: {
 		display: 'flex',
 		flexDirection: 'column',
-		gap: '1.5rem'
+		gap: '1.5rem',
+		w: 'full'
 	},
 	header: {
 		display: 'flex',
 		alignItems: 'center',
-		justifyContent: 'space-between'
+		justifyContent: 'space-between',
+		w: 'full'
 	},
 	title: {
 		fontSize: '1.875rem',
