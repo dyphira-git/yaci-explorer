@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { formatNumber, formatTimeAgo, formatHash, getTransactionStatus } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { css } from '@/styled-system/css'
+import { hstack, grid } from '@/styled-system/patterns'
 
 export default function BlockDetailPage() {
   const [mounted, setMounted] = useState(false)
@@ -309,6 +310,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
+    w: 'full',
   }),
   backLink: css({
     display: 'flex',
@@ -355,6 +357,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
+    w: 'full',
   }),
   skeletonHeader: css({
     height: '2rem',
@@ -372,6 +375,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '1.5rem',
+    w: 'full',
   }),
   backLinkWithMargin: css({
     display: 'flex',
@@ -406,6 +410,7 @@ const styles = {
     display: 'grid',
     gap: '1.5rem',
     gridTemplateColumns: { base: '1fr', lg: 'repeat(3, 1fr)' },
+    w: 'full',
   }),
   mainColumn: css({
     gridColumn: { base: 'span 1', lg: 'span 2' },

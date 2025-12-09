@@ -157,11 +157,13 @@ const styles = {
 		display: 'flex',
 		flexDirection: 'column',
 		gap: '6',
+		w: 'full',
 	},
 	header: {
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'space-between',
+		w: 'full',
 	},
 	title: {
 		fontSize: '3xl',

@@ -661,12 +661,14 @@ const styles = {
   pageContainer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem'
+    gap: '1rem',
+    w: 'full'
   },
   pageContainerLarge: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1.5rem'
+    gap: '1.5rem',
+    w: 'full'
   },
   backLink: {
     display: 'flex',

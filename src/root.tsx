@@ -40,10 +40,10 @@ export default function Root() {
 						<main
 							className={css({
 								flex: "1",
-								maxW: "6xl",
-								mx: "auto",
 								w: "full",
-								px: { base: "4", md: "6" },
+								maxW: "8xl",
+								mx: "auto",
+								px: { base: "4", md: "6", lg: "8" },
 								py: { base: "6", md: "8" }
 							})}
 						>

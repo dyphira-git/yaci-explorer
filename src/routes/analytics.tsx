@@ -25,6 +25,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '6',
+    w: 'full',
   }),
   title: css({
     fontSize: '3xl',
@@ -34,6 +35,7 @@ const styles = {
   gridTwo: css({
     display: 'grid',
     gap: '6',
+    w: 'full',
     gridTemplateColumns: {
       base: '1fr',
       lg: 'repeat(2, 1fr)',
