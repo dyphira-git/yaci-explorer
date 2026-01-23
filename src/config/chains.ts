@@ -155,7 +155,20 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     nativeSymbol: 'RAI',
     decimals: 18,
     rpcEndpoint: 'https://rpc.republicai.io',
-    restEndpoint: 'https://api.republicai.io',
+    restEndpoint: 'https://rest.republicai.io',
+  },
+  'raitestnet_77701-1': {
+    name: 'Republic AI Testnet',
+    features: {
+      evm: true,
+      ibc: true,
+      wasm: false,
+    },
+    nativeDenom: 'arai',
+    nativeSymbol: 'RAI',
+    decimals: 18,
+    rpcEndpoint: 'https://rpc.republicai.io',
+    restEndpoint: 'https://rest.republicai.io',
   },
 }
 
