@@ -47,11 +47,6 @@ export interface AppConfig {
 		networkMessageWindow?: number
 		networkRefetchMs?: number
 	}
-	resetNotice?: {
-		enabled?: boolean
-		refetchIntervalMs?: number
-		hashCheckHeight?: number
-	}
 	branding?: {
 		logoUrl?: string
 		faviconUrl?: string
@@ -110,11 +105,6 @@ const defaultConfig: AppConfig = {
 		networkTxWindow: 1000,
 		networkMessageWindow: 2000,
 		networkRefetchMs: 10_000
-	},
-	resetNotice: {
-		enabled: true,
-		refetchIntervalMs: 30_000,
-		hashCheckHeight: 5
 	},
 	branding: {
 		logoUrl: undefined,
