@@ -3,8 +3,7 @@
 # Steps:
 #   1. yarn install
 #   2. yarn deploy:build (clean + typecheck + build)
-#   3. yarn reset:full (runs chain-reset-guard)
-#   4. systemctl restart <services>
+#   3. systemctl restart <services>
 
 set -euo pipefail
 
@@ -52,9 +51,6 @@ fi
 
 echo "[redeploy] Running deploy build..."
 "$YARN_BIN" deploy:build
-
-echo "[redeploy] Executing full reset guard..."
-"$YARN_BIN" reset:full
 
 echo "[redeploy] Restarting systemd services..."
 sudo systemctl restart "$INDEXER_SERVICE"

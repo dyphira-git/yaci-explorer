@@ -43,11 +43,6 @@ export function getAppConfig() {
       networkMessageWindow: config.analytics?.networkMessageWindow ?? 2000,
       networkRefetchMs: config.analytics?.networkRefetchMs ?? 10_000,
     },
-    resetNotice: {
-      enabled: config.resetNotice?.enabled ?? true,
-      refetchIntervalMs: config.resetNotice?.refetchIntervalMs ?? 30_000,
-      hashCheckHeight: config.resetNotice?.hashCheckHeight ?? 5,
-    },
   } as const
 }
 
