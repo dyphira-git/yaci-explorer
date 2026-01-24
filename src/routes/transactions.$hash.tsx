@@ -78,6 +78,15 @@ function isJsonString(str: string): boolean {
   }
 }
 
+
+// Get display name for event types to avoid confusion with tx messages
+function getEventTypeDisplay(type: string): string {
+  // "message" event type is confusing because it looks like a tx message
+  // These are SDK dispatch events, not transaction messages
+  if (type === 'message') return 'msg_dispatch'
+  return type
+}
+
 export default function TransactionDetailPage() {
   const [mounted, setMounted] = useState(false)
   const [showRawData, setShowRawData] = useState<Record<number, boolean>>({})
@@ -513,7 +522,7 @@ export default function TransactionDetailPage() {
                                                   <ChevronRight className={css(styles.chevronSmallIcon)} />
                                                 )}
                                                 <span className={css(styles.eventTypeName)}>
-                                                  {type}
+                                                  {getEventTypeDisplay(type)}
                                                 </span>
                                                 <span className={css(styles.eventTypeCount)}>
                                                   ({filteredEvents.length})
