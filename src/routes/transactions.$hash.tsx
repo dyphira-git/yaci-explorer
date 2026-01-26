@@ -78,6 +78,20 @@ function isJsonString(str: string): boolean {
   }
 }
 
+/** Known Cosmos SDK framework event types (internal dispatch, not application-level) */
+const SDK_FRAMEWORK_EVENTS = new Set([
+  'message',
+  'tx',
+  'coin_spent',
+  'coin_received',
+  'transfer',
+  'commission',
+  'rewards',
+  'proposer_reward',
+  'mint',
+  'burn',
+])
+
 export default function TransactionDetailPage() {
   const [mounted, setMounted] = useState(false)
   const [showRawData, setShowRawData] = useState<Record<number, boolean>>({})
@@ -512,8 +526,11 @@ export default function TransactionDetailPage() {
                                                 ) : (
                                                   <ChevronRight className={css(styles.chevronSmallIcon)} />
                                                 )}
-                                                <span className={css(styles.eventTypeName)}>
+                                                <span className={css(SDK_FRAMEWORK_EVENTS.has(type) ? styles.eventTypeNameSdk : styles.eventTypeName)}>
                                                   {type}
+                                                  {SDK_FRAMEWORK_EVENTS.has(type) && (
+                                                    <span className={css(styles.sdkLabel)}>(sdk)</span>
+                                                  )}
                                                 </span>
                                                 <span className={css(styles.eventTypeCount)}>
                                                   ({filteredEvents.length})
@@ -1053,6 +1070,18 @@ const styles = {
   eventTypeName: {
     fontSize: 'xs',
     fontWeight: 'medium'
+  },
+  eventTypeNameSdk: {
+    fontSize: 'xs',
+    fontWeight: 'medium',
+    fontStyle: 'italic',
+    color: 'fg.subtle'
+  },
+  sdkLabel: {
+    fontSize: '2xs',
+    color: 'fg.subtle',
+    marginLeft: '0.25rem',
+    fontWeight: 'normal'
   },
   eventTypeCount: {
     fontSize: 'xs',

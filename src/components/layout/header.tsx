@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Blocks, Home } from 'lucide-react'
+import { Activity, BarChart3, Blocks, Cpu, Home, Shield } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { SearchBar } from '@/components/common/search-bar'
 import { getBrandingConfig } from '@/config/branding'
@@ -9,6 +9,8 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Blocks', href: '/blocks', icon: Blocks },
   { name: 'Transactions', href: '/tx', icon: Activity },
+  { name: 'Compute', href: '/compute', icon: Cpu },
+  { name: 'Network', href: '/network', icon: Shield },
   { name: 'EVM', href: '/evm/contracts', icon: EthereumIcon },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
 ]
@@ -37,7 +39,7 @@ export function Header() {
               {navigation.map((item) => {
                 const Icon = item.icon
                 const isActive = pathname === item.href ||
-                  (item.href.startsWith('/evm') && pathname.startsWith('/evm'))
+                  (item.href !== '/' && pathname.startsWith(item.href))
                 return (
                   <Link
                     key={item.name}

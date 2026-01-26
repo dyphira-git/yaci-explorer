@@ -153,6 +153,82 @@ export interface BlockRaw {
 	}
 }
 
+// Republic module types
+
+export interface ComputeJob {
+	job_id: number
+	creator: string
+	target_validator: string
+	execution_image: string | null
+	result_upload_endpoint: string | null
+	result_fetch_endpoint: string | null
+	verification_image: string | null
+	fee_denom: string | null
+	fee_amount: string | null
+	status: 'PENDING' | 'COMPLETED' | 'FAILED'
+	result_hash: string | null
+	submit_tx_hash: string
+	submit_height: number | null
+	submit_time: string | null
+	result_tx_hash: string | null
+	result_height: number | null
+	result_time: string | null
+	created_at: string
+	updated_at: string
+}
+
+export interface ComputeBenchmark {
+	benchmark_id: number
+	creator: string
+	benchmark_type: string | null
+	upload_endpoint: string | null
+	retrieve_endpoint: string | null
+	result_file_hash: string | null
+	status: 'PENDING' | 'COMPLETED' | 'FAILED'
+	submit_tx_hash: string
+	submit_height: number | null
+	submit_time: string | null
+	result_tx_hash: string | null
+	result_validator: string | null
+	result_height: number | null
+	result_time: string | null
+	created_at: string
+	updated_at: string
+}
+
+export interface ComputeStats {
+	total_jobs: number
+	pending_jobs: number
+	completed_jobs: number
+	failed_jobs: number
+	total_benchmarks: number
+	completed_benchmarks: number
+}
+
+export interface SlashingRecord {
+	id: number
+	slashing_id: number | null
+	validator_address: string
+	submitter: string
+	condition: 'COMPUTE_MISCONDUCT' | 'REPUTATION_DEGRADATION' | 'DELEGATED_COLLUSION'
+	evidence_type: string | null
+	evidence_data: Record<string, unknown> | null
+	tx_hash: string
+	height: number | null
+	timestamp: string | null
+	created_at: string
+}
+
+export interface ValidatorIPFS {
+	validator_address: string
+	ipfs_multiaddrs: string[] | null
+	ipfs_peer_id: string | null
+	tx_hash: string
+	height: number | null
+	timestamp: string | null
+	updated_at: string
+}
+
 // Legacy type aliases for compatibility
 export type EnhancedTransaction = Transaction
 
@@ -570,6 +646,64 @@ export class YaciClient {
 	}>> {
 		return this.query('ibc_channels', {
 			order: 'channel_id.asc',
+			limit: String(limit),
+			offset: String(offset)
+		})
+	}
+
+	// Republic module endpoints
+
+	async getComputeJobs(
+		limit = 20,
+		offset = 0,
+		filters?: { status?: string; creator?: string; validator?: string }
+	): Promise<PaginatedResponse<ComputeJob>> {
+		return this.rpc('get_compute_jobs', {
+			_limit: limit,
+			_offset: offset,
+			_status: filters?.status,
+			_creator: filters?.creator,
+			_validator: filters?.validator
+		})
+	}
+
+	async getComputeJob(jobId: number): Promise<ComputeJob | null> {
+		return this.rpc('get_compute_job', { _job_id: jobId })
+	}
+
+	async getComputeBenchmarks(
+		limit = 20,
+		offset = 0,
+		filters?: { status?: string }
+	): Promise<PaginatedResponse<ComputeBenchmark>> {
+		return this.rpc('get_compute_benchmarks', {
+			_limit: limit,
+			_offset: offset,
+			_status: filters?.status
+		})
+	}
+
+	async getComputeStats(): Promise<ComputeStats> {
+		const result = await this.query<ComputeStats[]>('compute_stats')
+		return result[0]
+	}
+
+	async getSlashingRecords(
+		limit = 20,
+		offset = 0,
+		filters?: { validator?: string; condition?: string }
+	): Promise<PaginatedResponse<SlashingRecord>> {
+		return this.rpc('get_slashing_records', {
+			_limit: limit,
+			_offset: offset,
+			_validator: filters?.validator,
+			_condition: filters?.condition
+		})
+	}
+
+	async getValidatorIPFS(limit = 50, offset = 0): Promise<ValidatorIPFS[]> {
+		return this.query('validator_ipfs_addresses', {
+			order: 'updated_at.desc',
 			limit: String(limit),
 			offset: String(offset)
 		})
