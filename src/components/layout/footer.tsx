@@ -3,25 +3,31 @@ import { RepublicLogo, XIcon, GitHubIcon, DiscordIcon, DocumentIcon } from '@/co
 
 const links = {
   docs: [
-    { label: 'Documentation', href: 'https://docs.republicai.io' },
-    { label: 'Whitepaper', href: 'https://whitepaper.republicai.io' },
-    { label: 'API Reference', href: 'https://docs.republicai.io/api' },
+    { label: 'Getting Started', href: 'https://docs.republicai.io/docs/introduction' },
+    { label: 'API Reference', href: 'https://docs.republicai.io/docs/introduction' },
+    { label: 'Integrations', href: 'https://docs.republicai.io/' },
+    { label: 'SDKs', href: 'https://docs.republicai.io/' },
   ],
   company: [
-    { label: 'About', href: 'https://republicai.io' },
-    { label: 'Blog', href: 'https://republicai.io/blog' },
+    { label: 'Changelog', href: 'https://docs.republicai.io/' },
+    { label: 'Validator Quickstart', href: 'https://docs.republicai.io/' },
+    { label: 'Client Quickstart', href: 'https://docs.republicai.io/' },
+    { label: 'Whitepaper', href: 'https://whitepaper.republicai.io/' },
   ],
   resources: [
-    { label: 'Faucet', href: 'https://faucet.republicai.io' },
+    { label: 'Documentation', href: 'https://docs.republicai.io/' },
+    { label: 'Whitepaper', href: 'https://whitepaper.republicai.io/' },
+    { label: 'Block Explorer', href: 'https://explorer.republicai.io/' },
+    { label: 'Testnet Faucet', href: 'https://faucet.republicai.io' },
   ],
   legal: [
-    { label: 'Terms of Service', href: 'https://points.republicai.io/terms' },
     { label: 'Privacy Policy', href: 'https://points.republicai.io/privacy' },
+    { label: 'Terms of Service', href: 'https://points.republicai.io/terms' },
   ],
 }
 
 const socialLinks = [
-  { icon: XIcon, href: 'https://x.com/republicai', label: 'X (Twitter)' },
+  { icon: XIcon, href: 'https://x.com/republicfdn', label: 'X (Twitter)' },
   { icon: GitHubIcon, href: 'https://github.com/RepublicAI', label: 'GitHub' },
   { icon: DiscordIcon, href: 'https://discord.com/invite/therepublic', label: 'Discord' },
   { icon: DocumentIcon, href: 'https://whitepaper.republicai.io', label: 'Whitepaper' },
@@ -34,7 +40,7 @@ export function Footer() {
         <div className={styles.top}>
           <div className={styles.brand}>
             <RepublicLogo className={styles.logo} />
-            <p className={styles.tagline}>Powering the new order of computing</p>
+            <p className={styles.tagline}>Layer 1 blockchain backed by compute.</p>
             <div className={styles.socialLinks}>
               {socialLinks.map((link) => {
                 const Icon = link.icon
@@ -97,7 +103,7 @@ export function Footer() {
         </div>
 
         <div className={styles.bottom}>
-          <p className={styles.copyright}>Copyright 2025 IGCF</p>
+          <p className={styles.copyright}>Copyright 2025 IGCF. All rights reserved.</p>
         </div>
       </div>
     </footer>
