@@ -139,6 +139,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       evm: true,
       ibc: true,
       wasm: false,
+      customModules: ['computevalidation', 'reputation', 'slashingplus'],
     },
     nativeDenom: 'atest',
     nativeSymbol: 'TEST',
@@ -150,6 +151,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       evm: true,
       ibc: true,
       wasm: false,
+      customModules: ['computevalidation', 'reputation', 'slashingplus'],
     },
     nativeDenom: 'arai',
     nativeSymbol: 'RAI',
@@ -163,6 +165,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       evm: true,
       ibc: true,
       wasm: false,
+      customModules: ['computevalidation', 'reputation', 'slashingplus'],
     },
     nativeDenom: 'arai',
     nativeSymbol: 'RAI',
@@ -250,6 +253,33 @@ export function isChainSpecificMessage(messageType: string): {
       isCustom: true,
       moduleName: 'osmosis-custom',
       chainRecommendation: 'Osmosis-specific module',
+    }
+  }
+
+  // Republic - Compute Validation
+  if (messageType.includes('computevalidation')) {
+    return {
+      isCustom: true,
+      moduleName: 'computevalidation',
+      chainRecommendation: 'Republic compute validation module',
+    }
+  }
+
+  // Republic - Reputation
+  if (messageType.includes('reputation')) {
+    return {
+      isCustom: true,
+      moduleName: 'reputation',
+      chainRecommendation: 'Republic reputation module',
+    }
+  }
+
+  // Republic - Slashing Plus
+  if (messageType.includes('slashingplus')) {
+    return {
+      isCustom: true,
+      moduleName: 'slashingplus',
+      chainRecommendation: 'Republic enhanced slashing module',
     }
   }
 
