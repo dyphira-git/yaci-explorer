@@ -298,7 +298,7 @@ export default function AddressDetailPage() {
 								<Table>
 									<TableHeader>
 										<TableRow>
-											<TableHead>Type</TableHead>
+											<TableHead>Role</TableHead>
 											<TableHead>Tx Hash</TableHead>
 											<TableHead>Block</TableHead>
 											<TableHead>Messages</TableHead>
@@ -323,9 +323,9 @@ export default function AddressDetailPage() {
 															)}
 														>
 															{isOut ? (
-																<><ArrowUpRight className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />OUT</>
+																<><ArrowUpRight className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />Sender</>
 															) : (
-																<><ArrowDownLeft className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />IN</>
+																<><ArrowDownLeft className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />Related</>
 															)}
 														</Badge>
 													</TableCell>
