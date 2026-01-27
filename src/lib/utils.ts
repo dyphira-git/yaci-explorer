@@ -1,4 +1,5 @@
 import { cx } from '@/styled-system/css'
+import { getBech32Prefix } from '@/lib/chain-info'
 
 // Re-export cx as cn for compatibility with existing code
 export const cn = cx
@@ -197,7 +198,10 @@ function bech32Encode(prefix: string, bytes: Uint8Array): string {
 }
 
 /** Convert hex address to bech32 */
-export function hexToBech32(hexAddr: string, prefix = 'republic'): string | null {
+export function hexToBech32(hexAddr: string, prefix?: string): string | null {
+  if (!prefix) {
+    prefix = getBech32Prefix()
+  }
   if (!hexAddr.match(/^0x[a-fA-F0-9]{40}$/)) return null
   const bytes = new Uint8Array(20)
   for (let i = 0; i < 20; i++) {
@@ -214,7 +218,10 @@ export function bech32ToHex(bech32Addr: string): string | null {
 }
 
 /** Get the alternate address format (hex<->bech32) */
-export function getAlternateAddress(address: string, bech32Prefix = 'republic'): string | null {
+export function getAlternateAddress(address: string, bech32Prefix?: string): string | null {
+  if (!bech32Prefix) {
+    bech32Prefix = getBech32Prefix()
+  }
   const type = getAddressType(address)
   if (type === 'cosmos') return bech32ToHex(address)
   if (type === 'evm') return hexToBech32(address, bech32Prefix)

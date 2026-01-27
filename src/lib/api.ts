@@ -205,20 +205,6 @@ export interface ComputeStats {
 	completed_benchmarks: number
 }
 
-export interface SlashingRecord {
-	id: number
-	slashing_id: number | null
-	validator_address: string
-	submitter: string
-	condition: 'COMPUTE_MISCONDUCT' | 'REPUTATION_DEGRADATION' | 'DELEGATED_COLLUSION'
-	evidence_type: string | null
-	evidence_data: Record<string, unknown> | null
-	tx_hash: string
-	height: number | null
-	timestamp: string | null
-	created_at: string
-}
-
 export interface ValidatorIPFS {
 	validator_address: string
 	ipfs_multiaddrs: string[] | null
@@ -359,17 +345,22 @@ export class YaciClient {
 	async getTransactionsByAddress(
 		address: string,
 		limit = 50,
-		offset = 0
+		offset = 0,
+		altAddress?: string
 	): Promise<PaginatedResponse<Transaction>> {
 		return this.rpc('get_transactions_by_address', {
 			_address: address,
 			_limit: limit,
-			_offset: offset
+			_offset: offset,
+			_alt_address: altAddress || null
 		})
 	}
 
-	async getAddressStats(address: string): Promise<AddressStats> {
-		return this.rpc('get_address_stats', { _address: address })
+	async getAddressStats(address: string, altAddress?: string): Promise<AddressStats> {
+		return this.rpc('get_address_stats', {
+			_address: address,
+			_alt_address: altAddress || null
+		})
 	}
 
 	// Transaction endpoints
@@ -597,7 +588,7 @@ export class YaciClient {
 		creation_tx: string | null
 		bytecode_hash: string | null
 		name: string | null
-		verified: boolean
+		is_verified: boolean
 		creation_height: number
 	}>> {
 		return this.query('evm_contracts', {
@@ -776,19 +767,6 @@ export class YaciClient {
 	async getComputeStats(): Promise<ComputeStats> {
 		const result = await this.query<ComputeStats[]>('compute_stats')
 		return result[0]
-	}
-
-	async getSlashingRecords(
-		limit = 20,
-		offset = 0,
-		filters?: { validator?: string; condition?: string }
-	): Promise<PaginatedResponse<SlashingRecord>> {
-		return this.rpc('get_slashing_records', {
-			_limit: limit,
-			_offset: offset,
-			_validator: filters?.validator,
-			_condition: filters?.condition
-		})
 	}
 
 	async getValidatorIPFS(limit = 50, offset = 0): Promise<ValidatorIPFS[]> {

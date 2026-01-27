@@ -103,7 +103,7 @@ export default function EvmContractsPage() {
 											)}
 										</TableCell>
 										<TableCell>
-											{contract.verified ? (
+											{contract.is_verified ? (
 												<Badge variant="success">
 													<CheckCircle className={css(styles.badgeIcon)} />
 													Verified

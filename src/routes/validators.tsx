@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
-import { Shield } from "lucide-react"
+import { Shield, Globe } from "lucide-react"
 import {
 	Card,
 	CardContent,
@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { api } from "@/lib/api"
-import { formatAddress, formatNumber } from "@/lib/utils"
+import { formatAddress, formatNumber, formatTimeAgo } from "@/lib/utils"
 import { css } from "@/styled-system/css"
 
 type SortField = "tokens" | "moniker" | "commission" | "status" | "delegators"
@@ -67,6 +67,12 @@ export default function ValidatorsPage() {
 	const { data: stats, isLoading: statsLoading } = useQuery({
 		queryKey: ["validator-stats"],
 		queryFn: () => api.getValidatorStats(),
+		staleTime: 30000,
+	})
+
+	const { data: ipfsData, isLoading: ipfsLoading } = useQuery({
+		queryKey: ["validator-ipfs"],
+		queryFn: () => api.getValidatorIPFS(100, 0),
 		staleTime: 30000,
 	})
 
@@ -324,6 +330,85 @@ export default function ValidatorsPage() {
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Validator IPFS Addresses */}
+			<Card>
+				<CardHeader>
+					<CardTitle>
+						<div className={css(styles.sectionTitle)}>
+							<Globe className={css(styles.sectionIcon)} />
+							Validator IPFS Addresses
+						</div>
+					</CardTitle>
+					<CardDescription>
+						{ipfsData
+							? `${ipfsData.length} validators with IPFS addresses`
+							: "Loading..."}
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{ipfsLoading ? (
+						<div className={css(styles.loadingContainer)}>
+							{Array.from({ length: 3 }).map((_, i) => (
+								<Skeleton key={i} className={css(styles.skeleton)} />
+							))}
+						</div>
+					) : !ipfsData?.length ? (
+						<div className={css(styles.emptyState)}>
+							<Globe className={css(styles.emptyIcon)} />
+							<h3 className={css(styles.emptyTitle)}>
+								No IPFS Addresses Registered
+							</h3>
+							<p className={css(styles.emptyText)}>
+								No validators have registered IPFS addresses yet.
+							</p>
+						</div>
+					) : (
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Validator</TableHead>
+									<TableHead>Peer ID</TableHead>
+									<TableHead>Multiaddrs</TableHead>
+									<TableHead>Last Updated</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{ipfsData.map((v) => (
+									<TableRow key={v.validator_address}>
+										<TableCell>
+											<Link
+												to={`/validators/${v.validator_address}`}
+												className={css(styles.addressLink)}
+											>
+												{formatAddress(v.validator_address, 8)}
+											</Link>
+										</TableCell>
+										<TableCell className={css(styles.monoSmall)}>
+											{v.ipfs_peer_id
+												? `${v.ipfs_peer_id.slice(0, 16)}...`
+												: "-"}
+										</TableCell>
+										<TableCell>
+											{v.ipfs_multiaddrs?.length ? (
+												<Badge variant="outline">
+													{v.ipfs_multiaddrs.length} addr
+													{v.ipfs_multiaddrs.length !== 1 ? "s" : ""}
+												</Badge>
+											) : (
+												<span className={css(styles.mutedText)}>-</span>
+											)}
+										</TableCell>
+										<TableCell className={css(styles.mutedText)}>
+											{v.timestamp ? formatTimeAgo(v.timestamp) : "-"}
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	)
 }
@@ -365,7 +450,7 @@ const styles = {
 		display: "flex",
 		flexDirection: "column",
 		gap: "1",
-		pt: "4",
+		py: "4",
 	},
 	statLabel: {
 		fontSize: "xs",
@@ -502,5 +587,23 @@ const styles = {
 	pageInfo: {
 		fontSize: "sm",
 		color: "fg.muted",
+	},
+	sectionTitle: {
+		display: "flex",
+		alignItems: "center",
+		gap: "2",
+	},
+	sectionIcon: {
+		h: "5",
+		w: "5",
+		color: "accent.default",
+	},
+	monoSmall: {
+		fontFamily: "mono",
+		fontSize: "xs",
+	},
+	mutedText: {
+		color: "fg.muted",
+		fontSize: "sm",
 	},
 }
