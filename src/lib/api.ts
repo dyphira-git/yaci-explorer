@@ -237,9 +237,12 @@ export interface Validator {
 	updated_at: string
 	voting_power_pct: number
 	delegator_count: number
+	ipfs_peer_id?: string | null
 }
 
-export interface ValidatorDetail extends Validator {}
+export interface ValidatorDetail extends Validator {
+	ipfs_multiaddrs?: string[] | null
+}
 
 export interface DelegationEvent {
 	id: number

@@ -61,11 +61,14 @@ function eventTypeBadge(eventType: string) {
 }
 
 /**
- * Formats a commission rate as percentage
+ * Formats a commission rate (stored as 0-1 decimal) as percentage.
+ * Defensively handles leftover Cosmos SDK Dec format (10^18) values.
  */
 function formatCommission(rate: number | null): string {
 	if (rate === null || rate === undefined) return "-"
-	const pct = rate > 1 ? rate : rate * 100
+	let normalized = rate
+	if (normalized > 1e6) normalized = normalized / 1e18
+	const pct = normalized > 1 ? normalized : normalized * 100
 	return `${pct.toFixed(2)}%`
 }
 
@@ -434,6 +437,39 @@ export default function ValidatorDetailPage() {
 							</div>
 						</CardContent>
 					</Card>
+
+					{/* IPFS Info */}
+					{validator.ipfs_peer_id && (
+						<Card>
+							<CardHeader>
+								<CardTitle>IPFS</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className={css(styles.sidebarFields)}>
+									<div className={css(styles.field)}>
+										<label className={css(styles.fieldLabel)}>
+											Peer ID
+										</label>
+										<p className={css(styles.monoValueSmall)}>
+											{validator.ipfs_peer_id}
+										</p>
+									</div>
+									{validator.ipfs_multiaddrs && validator.ipfs_multiaddrs.length > 0 && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>
+												Multiaddrs ({validator.ipfs_multiaddrs.length})
+											</label>
+											{validator.ipfs_multiaddrs.map((addr, i) => (
+												<p key={i} className={css(styles.monoValueSmall)}>
+													{addr}
+												</p>
+											))}
+										</div>
+									)}
+								</div>
+							</CardContent>
+						</Card>
+					)}
 				</div>
 			</div>
 		</div>
