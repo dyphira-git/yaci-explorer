@@ -2,7 +2,7 @@
 
 import { useDenom } from '@/contexts/DenomContext'
 import { formatNumber } from '@/lib/utils'
-import { Copy, ArrowRight, Coins, Users, Vote, Lock } from 'lucide-react'
+import { Copy, ArrowRight, Coins, Users, Vote, Lock, Cpu, Shield, Star } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
@@ -54,6 +54,34 @@ interface MessageMetadata {
   grantee?: string
   granter?: string
   msgs?: Array<any>
+
+  // Republic - Compute Validation
+  targetValidator?: string
+  executionImage?: string
+  resultUploadEndpoint?: string
+  resultFetchEndpoint?: string
+  verificationImage?: string
+  jobId?: string
+  resultHash?: string
+  benchmarkType?: string
+  uploadEndpoint?: string
+  retrieveEndpoint?: string
+  benchmarkId?: string
+  resultFileHash?: string
+  seed?: string
+  targetHeight?: string
+  weightedValidators?: Array<{ validator: string; weight: string }>
+  creator?: string
+
+  // Republic - Reputation
+  ipfsMultiaddrs?: string[]
+
+  // Republic - Slashing Plus
+  submitter?: string
+  evidence?: Record<string, unknown>
+
+  // Generic field catch-all
+  [key: string]: unknown
 }
 
 interface MessageDetailsProps {
@@ -653,6 +681,244 @@ export function MessageDetails({ type, metadata, events }: MessageDetailsProps) 
                 {msg['@type']?.split('.').pop() || 'Unknown'}
               </Badge>
             ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ============================================================
+  // Republic - Compute Validation Messages
+  // ============================================================
+
+  // MsgSubmitJob
+  if (type === '/republic.computevalidation.v1.MsgSubmitJob') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3', borderLeft: '3px solid', borderColor: 'republicGreen.default', pl: '3' })}>
+          <Cpu className={css({ h: '4', w: '4', color: 'republicGreen.default' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'republicGreen.default' })}>Submit Compute Job</span>
+        </div>
+        {(metadata.creator || metadata.sender) && (
+          <DetailRow label="Creator" value={String(metadata.creator || metadata.sender)} copyable icon={Users} />
+        )}
+        {metadata.targetValidator && (
+          <DetailRow label="Target Validator" value={metadata.targetValidator} copyable icon={Users} />
+        )}
+        {metadata.executionImage && (
+          <DetailRow label="Execution Image" value={metadata.executionImage} />
+        )}
+        {metadata.verificationImage && (
+          <DetailRow label="Verification Image" value={metadata.verificationImage} />
+        )}
+        {metadata.resultUploadEndpoint && (
+          <DetailRow label="Result Upload Endpoint" value={metadata.resultUploadEndpoint} />
+        )}
+        {metadata.resultFetchEndpoint && (
+          <DetailRow label="Result Fetch Endpoint" value={metadata.resultFetchEndpoint} />
+        )}
+        {metadata.amount && (
+          <div className={css({ p: '3', bg: 'republicGreen.default/10', rounded: 'lg', borderWidth: '1px', borderColor: 'republicGreen.default/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'republicGreen.default', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Fee</label>
+            {normalizeAmounts(metadata.amount).map((amt, idx) => (
+              <div key={idx} className={css({ fontSize: 'lg', fontWeight: 'bold', color: 'republicGreen.default' })}>
+                {formatDenom(amt.amount, amt.denom, getDenomDisplay)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // MsgSubmitJobResult
+  if (type === '/republic.computevalidation.v1.MsgSubmitJobResult') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3', borderLeft: '3px solid', borderColor: 'republicGreen.default', pl: '3' })}>
+          <Cpu className={css({ h: '4', w: '4', color: 'republicGreen.default' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'republicGreen.default' })}>Submit Job Result</span>
+        </div>
+        {metadata.jobId && (
+          <div className={css({ p: '3', bg: 'republicGreen.default/10', rounded: 'lg', borderWidth: '1px', borderColor: 'republicGreen.default/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'republicGreen.default', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '1' })}>Job ID</label>
+            <div className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'republicGreen.default' })}>#{metadata.jobId}</div>
+          </div>
+        )}
+        {(metadata.creator || metadata.sender) && (
+          <DetailRow label="Submitter" value={String(metadata.creator || metadata.sender)} copyable icon={Users} />
+        )}
+        {metadata.resultHash && (
+          <DetailRow label="Result Hash" value={metadata.resultHash} copyable />
+        )}
+      </div>
+    )
+  }
+
+  // MsgBenchmarkRequest
+  if (type === '/republic.computevalidation.v1.MsgBenchmarkRequest') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3', borderLeft: '3px solid', borderColor: 'republicGreen.default', pl: '3' })}>
+          <Cpu className={css({ h: '4', w: '4', color: 'republicGreen.default' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'republicGreen.default' })}>Benchmark Request</span>
+        </div>
+        {(metadata.creator || metadata.sender) && (
+          <DetailRow label="Creator" value={String(metadata.creator || metadata.sender)} copyable icon={Users} />
+        )}
+        {metadata.benchmarkType && (
+          <DetailRow label="Benchmark Type" value={metadata.benchmarkType} />
+        )}
+        {metadata.uploadEndpoint && (
+          <DetailRow label="Upload Endpoint" value={metadata.uploadEndpoint} />
+        )}
+        {metadata.retrieveEndpoint && (
+          <DetailRow label="Retrieve Endpoint" value={metadata.retrieveEndpoint} />
+        )}
+      </div>
+    )
+  }
+
+  // MsgBenchmarkResult
+  if (type === '/republic.computevalidation.v1.MsgBenchmarkResult') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3', borderLeft: '3px solid', borderColor: 'republicGreen.default', pl: '3' })}>
+          <Cpu className={css({ h: '4', w: '4', color: 'republicGreen.default' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'republicGreen.default' })}>Benchmark Result</span>
+        </div>
+        {metadata.benchmarkId && (
+          <div className={css({ p: '3', bg: 'republicGreen.default/10', rounded: 'lg', borderWidth: '1px', borderColor: 'republicGreen.default/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'republicGreen.default', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '1' })}>Benchmark ID</label>
+            <div className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'republicGreen.default' })}>#{metadata.benchmarkId}</div>
+          </div>
+        )}
+        {(metadata.creator || metadata.sender) && (
+          <DetailRow label="Validator" value={String(metadata.creator || metadata.sender)} copyable icon={Users} />
+        )}
+        {metadata.resultFileHash && (
+          <DetailRow label="Result File Hash" value={metadata.resultFileHash} copyable />
+        )}
+      </div>
+    )
+  }
+
+  // MsgSubmitSeed
+  if (type === '/republic.computevalidation.v1.MsgSubmitSeed') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3', borderLeft: '3px solid', borderColor: 'republicGreen.default', pl: '3' })}>
+          <Cpu className={css({ h: '4', w: '4', color: 'republicGreen.default' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'republicGreen.default' })}>Submit Seed</span>
+        </div>
+        {(metadata.creator || metadata.sender) && (
+          <DetailRow label="Validator" value={String(metadata.creator || metadata.sender)} copyable icon={Users} />
+        )}
+        {metadata.benchmarkId && (
+          <DetailRow label="Benchmark ID" value={metadata.benchmarkId} />
+        )}
+        {metadata.seed && (
+          <DetailRow label="Seed" value={metadata.seed} copyable />
+        )}
+      </div>
+    )
+  }
+
+  // MsgSubmitCommitteeProposal
+  if (type === '/republic.computevalidation.v1.MsgSubmitCommitteeProposal') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3', borderLeft: '3px solid', borderColor: 'republicGreen.default', pl: '3' })}>
+          <Cpu className={css({ h: '4', w: '4', color: 'republicGreen.default' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'republicGreen.default' })}>Committee Proposal</span>
+        </div>
+        {(metadata.creator || metadata.sender) && (
+          <DetailRow label="Proposer" value={String(metadata.creator || metadata.sender)} copyable icon={Users} />
+        )}
+        {metadata.targetHeight && (
+          <DetailRow label="Target Height" value={metadata.targetHeight} />
+        )}
+        {metadata.weightedValidators && metadata.weightedValidators.length > 0 && (
+          <div className={css({ p: '3', bg: 'bg.muted/30', rounded: 'lg' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'fg.muted', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>
+              Weighted Validators ({metadata.weightedValidators.length})
+            </label>
+            {metadata.weightedValidators.map((wv, idx) => (
+              <div key={idx} className={css({ display: 'flex', justifyContent: 'space-between', fontSize: 'xs', fontFamily: 'mono', py: '1' })}>
+                <Link to={`/addr/${wv.validator}`} className={css({ color: 'accent.default', _hover: { textDecoration: 'underline' } })}>
+                  {wv.validator.slice(0, 16)}...{wv.validator.slice(-6)}
+                </Link>
+                <Badge variant="outline">{wv.weight}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ============================================================
+  // Republic - Reputation Messages
+  // ============================================================
+
+  // MsgSetIPFSAddress
+  if (type === '/republic.reputation.v1.MsgSetIPFSAddress') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3', borderLeft: '3px solid', borderColor: 'yellow.500', pl: '3' })}>
+          <Star className={css({ h: '4', w: '4', color: 'yellow.500' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'yellow.500' })}>Set IPFS Address</span>
+        </div>
+        {metadata.validatorAddress && (
+          <DetailRow label="Validator" value={metadata.validatorAddress} copyable icon={Users} />
+        )}
+        {metadata.ipfsMultiaddrs && metadata.ipfsMultiaddrs.length > 0 && (
+          <div className={css({ p: '3', bg: 'yellow.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'yellow.500/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'yellow.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>IPFS Multiaddrs</label>
+            {metadata.ipfsMultiaddrs.map((addr, idx) => (
+              <div key={idx} className={css({ fontSize: 'xs', fontFamily: 'mono', wordBreak: 'break-all', py: '1' })}>
+                {addr}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ============================================================
+  // Republic - Slashing Plus Messages
+  // ============================================================
+
+  if (
+    type === '/republic.slashingplus.v1.MsgSubmitComputeMisconductEvidence' ||
+    type === '/republic.slashingplus.v1.MsgSubmitReputationDegradationEvidence' ||
+    type === '/republic.slashingplus.v1.MsgSubmitDelegatedCollusionEvidence'
+  ) {
+    const conditionLabel = type.includes('ComputeMisconduct')
+      ? 'Compute Misconduct'
+      : type.includes('ReputationDegradation')
+        ? 'Reputation Degradation'
+        : 'Delegated Collusion'
+
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3', borderLeft: '3px solid', borderColor: 'red.500', pl: '3' })}>
+          <Shield className={css({ h: '4', w: '4', color: 'red.500' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'red.500' })}>Slashing Evidence: {conditionLabel}</span>
+        </div>
+        {(metadata.submitter || metadata.sender) && (
+          <DetailRow label="Submitter" value={String(metadata.submitter || metadata.sender)} copyable icon={Users} />
+        )}
+        {metadata.validatorAddress && (
+          <DetailRow label="Validator" value={metadata.validatorAddress} copyable icon={Users} />
+        )}
+        {metadata.evidence && (
+          <div className={css({ p: '3', bg: 'red.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'red.500/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'red.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Evidence</label>
+            <pre className={css({ fontSize: 'xs', fontFamily: 'mono', overflow: 'auto', maxH: '32', mt: '1' })}>
+              {JSON.stringify(metadata.evidence, null, 2)}
+            </pre>
           </div>
         )}
       </div>

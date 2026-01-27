@@ -9,9 +9,12 @@ import AddressPage from "./routes/addr.$id"
 import AnalyticsPage from "./routes/analytics"
 import BlocksPage from "./routes/blocks"
 import BlockDetailPage from "./routes/blocks.$id"
+import ComputePage from "./routes/compute"
+import ComputeJobDetailPage from "./routes/compute.$id"
 import EvmContractsPage from "./routes/evm-contracts"
 import EvmTokensPage from "./routes/evm-tokens"
 import HomePage from "./routes/home"
+import NetworkPage from "./routes/network"
 import TransactionsPage from "./routes/transactions"
 import TransactionDetailPage from "./routes/transactions.$hash"
 
@@ -38,6 +41,14 @@ const router = createBrowserRouter([
 			},
 			{ path: "analytics", element: <AnalyticsPage /> },
 			{ path: "addr/:id", element: <AddressPage /> },
+			{
+				path: "compute",
+				children: [
+					{ index: true, element: <ComputePage /> },
+					{ path: ":id", element: <ComputeJobDetailPage /> }
+				]
+			},
+			{ path: "network", element: <NetworkPage /> },
 			{
 				path: "evm",
 				children: [

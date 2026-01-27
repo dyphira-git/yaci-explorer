@@ -1,16 +1,17 @@
-import { Activity, BarChart3, Blocks, Home } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { SearchBar } from '@/components/common/search-bar'
 import { getBrandingConfig } from '@/config/branding'
 import { css, cx } from '@/styled-system/css'
-import { EthereumIcon, RepublicLogo } from '@/components/icons/icons'
+import { RepublicLogo } from '@/components/icons/icons'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Blocks', href: '/blocks', icon: Blocks },
-  { name: 'Transactions', href: '/tx', icon: Activity },
-  { name: 'EVM', href: '/evm/contracts', icon: EthereumIcon },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Dashboard', href: '/' },
+  { name: 'Blocks', href: '/blocks' },
+  { name: 'Transactions', href: '/tx' },
+  { name: 'Compute', href: '/compute' },
+  { name: 'Network', href: '/network' },
+  { name: 'EVM', href: '/evm/contracts' },
+  { name: 'Analytics', href: '/analytics' },
 ]
 
 export function Header() {
@@ -35,16 +36,14 @@ export function Header() {
 
             <nav className={styles.nav}>
               {navigation.map((item) => {
-                const Icon = item.icon
                 const isActive = pathname === item.href ||
-                  (item.href.startsWith('/evm') && pathname.startsWith('/evm'))
+                  (item.href !== '/' && pathname.startsWith(item.href))
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
                     className={cx(styles.navLink, isActive ? styles.navLinkActive : styles.navLinkInactive)}
                   >
-                    <Icon className={styles.navIcon} />
                     {item.name}
                   </Link>
                 )
@@ -123,15 +122,15 @@ const styles = {
   nav: css({
     display: { base: 'none', md: 'flex' },
     alignItems: 'center',
-    gap: '6',
+    gap: '4',
     fontSize: 'sm',
     fontWeight: 'medium',
   }),
   navLink: css({
     display: 'flex',
     alignItems: 'center',
-    gap: '2',
     transition: 'colors',
+    whiteSpace: 'nowrap',
   }),
   navLinkActive: css({
     color: '#FFFFFF',
@@ -151,9 +150,5 @@ const styles = {
     color: 'rgba(221, 244, 255, 0.75)',
     transition: 'color 0.2s ease',
     _hover: { color: '#FFFFFF' },
-  }),
-  navIcon: css({
-    h: '4',
-    w: '4',
   }),
 }
