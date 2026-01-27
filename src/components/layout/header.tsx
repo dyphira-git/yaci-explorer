@@ -8,6 +8,7 @@ const navigation = [
   { name: 'Dashboard', href: '/' },
   { name: 'Blocks', href: '/blocks' },
   { name: 'Transactions', href: '/tx' },
+  { name: 'Validators', href: '/validators' },
   { name: 'Compute', href: '/compute' },
   { name: 'Network', href: '/network' },
   { name: 'EVM', href: '/evm/contracts' },

@@ -17,6 +17,8 @@ import HomePage from "./routes/home"
 import NetworkPage from "./routes/network"
 import TransactionsPage from "./routes/transactions"
 import TransactionDetailPage from "./routes/transactions.$hash"
+import ValidatorsPage from "./routes/validators"
+import ValidatorDetailPage from "./routes/validators.$address"
 
 const router = createBrowserRouter([
 	{
@@ -41,6 +43,13 @@ const router = createBrowserRouter([
 			},
 			{ path: "analytics", element: <AnalyticsPage /> },
 			{ path: "addr/:id", element: <AddressPage /> },
+			{
+				path: "validators",
+				children: [
+					{ index: true, element: <ValidatorsPage /> },
+					{ path: ":address", element: <ValidatorDetailPage /> }
+				]
+			},
 			{
 				path: "compute",
 				children: [
