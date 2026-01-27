@@ -49,22 +49,25 @@ export default function AddressDetailPage() {
 		staleTime: Infinity,
 	})
 
+	const primaryAddr = bech32Addr || hexAddr || ''
+	const altAddr = bech32Addr ? hexAddr : bech32Addr
+
 	const { data: stats, isLoading: statsLoading } = useQuery({
-		queryKey: ['address-stats', bech32Addr],
+		queryKey: ['address-stats', primaryAddr, altAddr],
 		queryFn: async () => {
-			if (!bech32Addr) return null
-			return await api.getAddressStats(bech32Addr)
+			if (!primaryAddr) return null
+			return await api.getAddressStats(primaryAddr, altAddr || undefined)
 		},
-		enabled: mounted && !!bech32Addr,
+		enabled: mounted && !!primaryAddr,
 	})
 
 	const { data: transactions, isLoading: txLoading } = useQuery({
-		queryKey: ['address-transactions', bech32Addr, page],
+		queryKey: ['address-transactions', primaryAddr, altAddr, page],
 		queryFn: async () => {
-			if (!bech32Addr) return { data: [], pagination: { total: 0, limit: pageSize, offset: 0, has_next: false, has_prev: false } }
-			return await api.getTransactionsByAddress(bech32Addr, pageSize, page * pageSize)
+			if (!primaryAddr) return { data: [], pagination: { total: 0, limit: pageSize, offset: 0, has_next: false, has_prev: false } }
+			return await api.getTransactionsByAddress(primaryAddr, pageSize, page * pageSize, altAddr || undefined)
 		},
-		enabled: mounted && !!bech32Addr,
+		enabled: mounted && !!primaryAddr,
 	})
 
 	const { data: balances, isLoading: balancesLoading } = useQuery({
@@ -73,7 +76,7 @@ export default function AddressDetailPage() {
 			if (!bech32Addr) return []
 			return await getAccountBalances(bech32Addr)
 		},
-		enabled: mounted && !!bech32Addr,
+		enabled: mounted && !!bech32Addr, // balances require bech32 (REST API)
 		staleTime: 30000,
 	})
 
@@ -84,7 +87,11 @@ export default function AddressDetailPage() {
 	}
 
 	const isSender = (tx: EnhancedTransaction): boolean => {
-		return tx.messages?.some(msg => msg.sender === params.id) ?? false
+		return tx.messages?.some(msg =>
+			msg.sender === params.id ||
+			(hexAddr && msg.sender === hexAddr) ||
+			(bech32Addr && msg.sender === bech32Addr)
+		) ?? false
 	}
 
 	if (!mounted || (isValidAddr && statsLoading)) {
@@ -111,7 +118,7 @@ export default function AddressDetailPage() {
 							<h2 className={css({ fontSize: '2xl', fontWeight: 'bold', mb: '2' })}>Invalid Address</h2>
 							<p className={css({ color: 'fg.muted' })}>"{params.id}" is not a valid address format.</p>
 							<p className={css({ color: 'fg.muted', fontSize: 'sm', mt: '2' })}>
-								Valid formats: bech32 (e.g. republic1...) or hex (0x...)
+								Valid formats: bech32 (e.g. rai1...) or hex (0x...)
 							</p>
 						</div>
 					</CardContent>

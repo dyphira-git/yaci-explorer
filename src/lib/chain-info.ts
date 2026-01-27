@@ -10,6 +10,7 @@ export interface ChainInfo {
   displayDenom: string
   decimals: number
   features: ChainFeatures
+  bech32Prefix: string
 }
 
 let cachedChainInfo: ChainInfo | null = null
@@ -55,6 +56,7 @@ export async function getChainInfo(api: YaciClient): Promise<ChainInfo> {
       displayDenom,
       decimals,
       features: config.features,
+      bech32Prefix: config.bech32Prefix || 'cosmos',
     }
 
     return cachedChainInfo
@@ -72,6 +74,7 @@ export async function getChainInfo(api: YaciClient): Promise<ChainInfo> {
         ibc: true,
         wasm: false,
       },
+      bech32Prefix: 'cosmos',
     }
   }
 }
@@ -96,6 +99,14 @@ function autoDetectDecimals(baseDenom: string): number {
   if (baseDenom.startsWith('a')) return 18 // atto- prefix (10^-18)
   if (baseDenom.startsWith('u')) return 6  // micro- prefix (10^-6)
   return 0 // no prefix
+}
+
+/**
+ * Returns the cached bech32 prefix, or 'cosmos' if chain info hasn't loaded yet.
+ * This is a synchronous accessor for use in address conversion utilities.
+ */
+export function getBech32Prefix(): string {
+  return cachedChainInfo?.bech32Prefix || 'cosmos'
 }
 
 /**

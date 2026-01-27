@@ -345,17 +345,22 @@ export class YaciClient {
 	async getTransactionsByAddress(
 		address: string,
 		limit = 50,
-		offset = 0
+		offset = 0,
+		altAddress?: string
 	): Promise<PaginatedResponse<Transaction>> {
 		return this.rpc('get_transactions_by_address', {
 			_address: address,
 			_limit: limit,
-			_offset: offset
+			_offset: offset,
+			_alt_address: altAddress || null
 		})
 	}
 
-	async getAddressStats(address: string): Promise<AddressStats> {
-		return this.rpc('get_address_stats', { _address: address })
+	async getAddressStats(address: string, altAddress?: string): Promise<AddressStats> {
+		return this.rpc('get_address_stats', {
+			_address: address,
+			_alt_address: altAddress || null
+		})
 	}
 
 	// Transaction endpoints
@@ -583,7 +588,7 @@ export class YaciClient {
 		creation_tx: string | null
 		bytecode_hash: string | null
 		name: string | null
-		verified: boolean
+		is_verified: boolean
 		creation_height: number
 	}>> {
 		return this.query('evm_contracts', {

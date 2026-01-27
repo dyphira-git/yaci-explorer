@@ -450,7 +450,7 @@ const styles = {
 		display: "flex",
 		flexDirection: "column",
 		gap: "1",
-		pt: "4",
+		py: "4",
 	},
 	statLabel: {
 		fontSize: "xs",
