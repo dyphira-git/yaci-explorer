@@ -14,7 +14,6 @@ import ComputeJobDetailPage from "./routes/compute.$id"
 import EvmContractsPage from "./routes/evm-contracts"
 import EvmTokensPage from "./routes/evm-tokens"
 import HomePage from "./routes/home"
-import NetworkPage from "./routes/network"
 import TransactionsPage from "./routes/transactions"
 import TransactionDetailPage from "./routes/transactions.$hash"
 import ValidatorsPage from "./routes/validators"
@@ -57,7 +56,6 @@ const router = createBrowserRouter([
 					{ path: ":id", element: <ComputeJobDetailPage /> }
 				]
 			},
-			{ path: "network", element: <NetworkPage /> },
 			{
 				path: "evm",
 				children: [

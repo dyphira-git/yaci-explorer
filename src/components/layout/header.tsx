@@ -10,7 +10,6 @@ const navigation = [
   { name: 'Transactions', href: '/tx' },
   { name: 'Validators', href: '/validators' },
   { name: 'Compute', href: '/compute' },
-  { name: 'Network', href: '/network' },
   { name: 'EVM', href: '/evm/contracts' },
   { name: 'Analytics', href: '/analytics' },
 ]
