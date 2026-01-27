@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
-import { Shield, Globe } from "lucide-react"
+import { Shield } from "lucide-react"
 import {
 	Card,
 	CardContent,
@@ -21,7 +21,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { api } from "@/lib/api"
-import { formatAddress, formatNumber, formatTimeAgo } from "@/lib/utils"
+import { formatAddress } from "@/lib/utils"
+import { formatDenomAmount } from "@/lib/denom"
+import { getChainBaseDenom, getChainDisplayDenom } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
 
 type SortField = "tokens" | "moniker" | "commission" | "status" | "delegators"
@@ -47,12 +49,14 @@ function validatorStatusBadge(status: string | null, jailed: boolean) {
 }
 
 /**
- * Formats a commission rate (stored as decimal) as percentage
+ * Formats a commission rate (stored as 0-1 decimal) as percentage.
+ * Defensively handles leftover Cosmos SDK Dec format (10^18) values.
  */
 function formatCommission(rate: number | null): string {
 	if (rate === null || rate === undefined) return "-"
-	// Rate may be stored as whole number or decimal depending on source
-	const pct = rate > 1 ? rate : rate * 100
+	let normalized = rate
+	if (normalized > 1e6) normalized = normalized / 1e18
+	const pct = normalized > 1 ? normalized : normalized * 100
 	return `${pct.toFixed(2)}%`
 }
 
@@ -67,12 +71,6 @@ export default function ValidatorsPage() {
 	const { data: stats, isLoading: statsLoading } = useQuery({
 		queryKey: ["validator-stats"],
 		queryFn: () => api.getValidatorStats(),
-		staleTime: 30000,
-	})
-
-	const { data: ipfsData, isLoading: ipfsLoading } = useQuery({
-		queryKey: ["validator-ipfs"],
-		queryFn: () => api.getValidatorIPFS(100, 0),
 		staleTime: 30000,
 	})
 
@@ -153,7 +151,7 @@ export default function ValidatorsPage() {
 							<CardContent className={css(styles.statCard)}>
 								<span className={css(styles.statLabel)}>Total Bonded</span>
 								<span className={css(styles.statValue)}>
-									{formatNumber(stats.total_bonded_tokens, 0)}
+									{formatDenomAmount(stats.total_bonded_tokens, getChainBaseDenom(), { maxDecimals: 0 })} {getChainDisplayDenom()}
 								</span>
 							</CardContent>
 						</Card>
@@ -244,6 +242,7 @@ export default function ValidatorsPage() {
 										>
 											Status{sortIndicator("status")}
 										</TableHead>
+										<TableHead>IPFS</TableHead>
 										<TableHead
 											className={css(styles.sortableHead)}
 											onClick={() => handleSort("delegators")}
@@ -281,7 +280,7 @@ export default function ValidatorsPage() {
 													</span>
 													{v.tokens !== null && (
 														<span className={css(styles.tokensValue)}>
-															{formatNumber(v.tokens, 0)}
+															{formatDenomAmount(v.tokens, getChainBaseDenom(), { maxDecimals: 0 })} {getChainDisplayDenom()}
 														</span>
 													)}
 												</div>
@@ -291,6 +290,11 @@ export default function ValidatorsPage() {
 											</TableCell>
 											<TableCell>
 												{validatorStatusBadge(v.status, v.jailed)}
+											</TableCell>
+											<TableCell className={css(styles.monoSmall)}>
+												{v.ipfs_peer_id
+													? `${v.ipfs_peer_id.slice(0, 16)}...`
+													: "-"}
 											</TableCell>
 											<TableCell className={css(styles.monoText)}>
 												{v.delegator_count}
@@ -331,84 +335,6 @@ export default function ValidatorsPage() {
 				</CardContent>
 			</Card>
 
-			{/* Validator IPFS Addresses */}
-			<Card>
-				<CardHeader>
-					<CardTitle>
-						<div className={css(styles.sectionTitle)}>
-							<Globe className={css(styles.sectionIcon)} />
-							Validator IPFS Addresses
-						</div>
-					</CardTitle>
-					<CardDescription>
-						{ipfsData
-							? `${ipfsData.length} validators with IPFS addresses`
-							: "Loading..."}
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{ipfsLoading ? (
-						<div className={css(styles.loadingContainer)}>
-							{Array.from({ length: 3 }).map((_, i) => (
-								<Skeleton key={i} className={css(styles.skeleton)} />
-							))}
-						</div>
-					) : !ipfsData?.length ? (
-						<div className={css(styles.emptyState)}>
-							<Globe className={css(styles.emptyIcon)} />
-							<h3 className={css(styles.emptyTitle)}>
-								No IPFS Addresses Registered
-							</h3>
-							<p className={css(styles.emptyText)}>
-								No validators have registered IPFS addresses yet.
-							</p>
-						</div>
-					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Validator</TableHead>
-									<TableHead>Peer ID</TableHead>
-									<TableHead>Multiaddrs</TableHead>
-									<TableHead>Last Updated</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{ipfsData.map((v) => (
-									<TableRow key={v.validator_address}>
-										<TableCell>
-											<Link
-												to={`/validators/${v.validator_address}`}
-												className={css(styles.addressLink)}
-											>
-												{formatAddress(v.validator_address, 8)}
-											</Link>
-										</TableCell>
-										<TableCell className={css(styles.monoSmall)}>
-											{v.ipfs_peer_id
-												? `${v.ipfs_peer_id.slice(0, 16)}...`
-												: "-"}
-										</TableCell>
-										<TableCell>
-											{v.ipfs_multiaddrs?.length ? (
-												<Badge variant="outline">
-													{v.ipfs_multiaddrs.length} addr
-													{v.ipfs_multiaddrs.length !== 1 ? "s" : ""}
-												</Badge>
-											) : (
-												<span className={css(styles.mutedText)}>-</span>
-											)}
-										</TableCell>
-										<TableCell className={css(styles.mutedText)}>
-											{v.timestamp ? formatTimeAgo(v.timestamp) : "-"}
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					)}
-				</CardContent>
-			</Card>
 		</div>
 	)
 }
@@ -588,22 +514,8 @@ const styles = {
 		fontSize: "sm",
 		color: "fg.muted",
 	},
-	sectionTitle: {
-		display: "flex",
-		alignItems: "center",
-		gap: "2",
-	},
-	sectionIcon: {
-		h: "5",
-		w: "5",
-		color: "accent.default",
-	},
 	monoSmall: {
 		fontFamily: "mono",
 		fontSize: "xs",
-	},
-	mutedText: {
-		color: "fg.muted",
-		fontSize: "sm",
 	},
 }

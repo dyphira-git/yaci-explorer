@@ -110,6 +110,27 @@ export function getBech32Prefix(): string {
 }
 
 /**
+ * Returns the cached native denom decimals, or 6 if chain info hasn't loaded yet.
+ */
+export function getChainDecimals(): number {
+  return cachedChainInfo?.decimals ?? 6
+}
+
+/**
+ * Returns the cached base denom (e.g. 'arai'), or 'unknown' if chain info hasn't loaded yet.
+ */
+export function getChainBaseDenom(): string {
+  return cachedChainInfo?.baseDenom || 'unknown'
+}
+
+/**
+ * Returns the cached display denom symbol (e.g. 'RAI'), or 'UNKNOWN' if chain info hasn't loaded yet.
+ */
+export function getChainDisplayDenom(): string {
+  return cachedChainInfo?.displayDenom || 'UNKNOWN'
+}
+
+/**
  * Clear cached chain info (useful for testing or chain switches)
  */
 export function clearChainInfoCache() {

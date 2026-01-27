@@ -16,7 +16,9 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AddressChip } from "@/components/AddressChip"
 import { api } from "@/lib/api"
-import { formatAddress, formatTimeAgo, formatNumber } from "@/lib/utils"
+import { formatAddress, formatTimeAgo, formatNumber, fixBech32Address } from "@/lib/utils"
+import { formatDenomAmount } from "@/lib/denom"
+import { getChainBaseDenom, getChainDisplayDenom } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
 
 /**
@@ -59,11 +61,14 @@ function eventTypeBadge(eventType: string) {
 }
 
 /**
- * Formats a commission rate as percentage
+ * Formats a commission rate (stored as 0-1 decimal) as percentage.
+ * Defensively handles leftover Cosmos SDK Dec format (10^18) values.
  */
 function formatCommission(rate: number | null): string {
 	if (rate === null || rate === undefined) return "-"
-	const pct = rate > 1 ? rate : rate * 100
+	let normalized = rate
+	if (normalized > 1e6) normalized = normalized / 1e18
+	const pct = normalized > 1 ? normalized : normalized * 100
 	return `${pct.toFixed(2)}%`
 }
 
@@ -277,20 +282,23 @@ export default function ValidatorDetailPage() {
 														{eventTypeBadge(event.event_type)}
 													</TableCell>
 													<TableCell>
-														{event.delegator_address ? (
+														{event.delegator_address ? (() => {
+														const addr = fixBech32Address(event.delegator_address) || event.delegator_address
+														return (
 															<Link
-																to={`/addr/${event.delegator_address}`}
+																to={`/addr/${addr}`}
 																className={css(styles.addressLink)}
 															>
-																{formatAddress(event.delegator_address, 6)}
+																{formatAddress(addr, 6)}
 															</Link>
-														) : (
+														)
+													})() : (
 															<span className={css(styles.mutedText)}>-</span>
 														)}
 													</TableCell>
 													<TableCell className={css(styles.monoSmall)}>
 														{event.amount
-															? `${formatNumber(event.amount, 0)}${event.denom ? ` ${event.denom}` : ""}`
+															? `${formatDenomAmount(event.amount, event.denom || getChainBaseDenom(), { maxDecimals: 2 })} ${getChainDisplayDenom()}`
 															: "-"}
 													</TableCell>
 													<TableCell>
@@ -353,7 +361,7 @@ export default function ValidatorDetailPage() {
 									<span className={css(styles.sidebarLabel)}>Tokens</span>
 									<span className={css(styles.sidebarValue)}>
 										{validator.tokens !== null
-											? formatNumber(validator.tokens, 0)
+											? `${formatDenomAmount(validator.tokens, getChainBaseDenom(), { maxDecimals: 0 })} ${getChainDisplayDenom()}`
 											: "-"}
 									</span>
 								</div>
@@ -375,7 +383,7 @@ export default function ValidatorDetailPage() {
 											Min Self-Delegation
 										</span>
 										<span className={css(styles.sidebarValue)}>
-											{formatNumber(validator.min_self_delegation, 0)}
+											{formatDenomAmount(validator.min_self_delegation, getChainBaseDenom(), { maxDecimals: 0 })} {getChainDisplayDenom()}
 										</span>
 									</div>
 								)}
@@ -429,6 +437,39 @@ export default function ValidatorDetailPage() {
 							</div>
 						</CardContent>
 					</Card>
+
+					{/* IPFS Info */}
+					{validator.ipfs_peer_id && (
+						<Card>
+							<CardHeader>
+								<CardTitle>IPFS</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className={css(styles.sidebarFields)}>
+									<div className={css(styles.field)}>
+										<label className={css(styles.fieldLabel)}>
+											Peer ID
+										</label>
+										<p className={css(styles.monoValueSmall)}>
+											{validator.ipfs_peer_id}
+										</p>
+									</div>
+									{validator.ipfs_multiaddrs && validator.ipfs_multiaddrs.length > 0 && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>
+												Multiaddrs ({validator.ipfs_multiaddrs.length})
+											</label>
+											{validator.ipfs_multiaddrs.map((addr, i) => (
+												<p key={i} className={css(styles.monoValueSmall)}>
+													{addr}
+												</p>
+											))}
+										</div>
+									)}
+								</div>
+							</CardContent>
+						</Card>
+					)}
 				</div>
 			</div>
 		</div>
