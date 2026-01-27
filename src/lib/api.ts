@@ -229,6 +229,53 @@ export interface ValidatorIPFS {
 	updated_at: string
 }
 
+// Validator types
+
+export interface Validator {
+	operator_address: string
+	consensus_address: string | null
+	moniker: string | null
+	identity: string | null
+	website: string | null
+	details: string | null
+	commission_rate: number | null
+	commission_max_rate: number | null
+	commission_max_change_rate: number | null
+	min_self_delegation: number | null
+	tokens: number | null
+	delegator_shares: number | null
+	status: string | null
+	jailed: boolean
+	creation_height: number | null
+	first_seen_tx: string | null
+	updated_at: string
+	voting_power_pct: number
+	delegator_count: number
+}
+
+export interface ValidatorDetail extends Validator {}
+
+export interface DelegationEvent {
+	id: number
+	event_type: 'DELEGATE' | 'UNDELEGATE' | 'REDELEGATE' | 'CREATE_VALIDATOR' | 'EDIT_VALIDATOR'
+	delegator_address: string | null
+	validator_address: string
+	src_validator_address: string | null
+	amount: string | null
+	denom: string | null
+	tx_hash: string
+	height: number | null
+	timestamp: string | null
+	created_at: string
+}
+
+export interface ValidatorStats {
+	total_validators: number
+	active_validators: number
+	jailed_validators: number
+	total_bonded_tokens: number
+}
+
 // Legacy type aliases for compatibility
 export type EnhancedTransaction = Transaction
 
@@ -629,6 +676,49 @@ export class YaciClient {
 			limit: String(limit),
 			offset: String(offset)
 		})
+	}
+
+	async getValidatorsPaginated(
+		limit = 20,
+		offset = 0,
+		filters?: {
+			sortBy?: string
+			sortDir?: string
+			status?: string
+			search?: string
+		}
+	): Promise<PaginatedResponse<Validator>> {
+		return this.rpc('get_validators_paginated', {
+			_limit: limit,
+			_offset: offset,
+			_sort_by: filters?.sortBy,
+			_sort_dir: filters?.sortDir,
+			_status: filters?.status,
+			_search: filters?.search
+		})
+	}
+
+	async getValidatorDetail(operatorAddress: string): Promise<ValidatorDetail | null> {
+		return this.rpc('get_validator_detail', { _operator_address: operatorAddress })
+	}
+
+	async getDelegationEvents(
+		validatorAddress: string,
+		limit = 20,
+		offset = 0,
+		eventType?: string
+	): Promise<PaginatedResponse<DelegationEvent>> {
+		return this.rpc('get_delegation_events', {
+			_validator_address: validatorAddress,
+			_limit: limit,
+			_offset: offset,
+			_event_type: eventType
+		})
+	}
+
+	async getValidatorStats(): Promise<ValidatorStats> {
+		const result = await this.query<ValidatorStats[]>('validator_stats')
+		return result[0]
 	}
 
 	// IBC endpoints
