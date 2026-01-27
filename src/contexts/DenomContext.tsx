@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { getDenomMetadata } from '@/lib/denom'
 import { getConfig } from '@/lib/env'
+import { api } from '@/lib/api'
+import { getChainInfo } from '@/lib/chain-info'
 
 interface DenomContextType {
   getDenomDisplay: (denom: string) => string
@@ -25,6 +27,9 @@ export function DenomProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadDenomMetadata = async () => {
       try {
+        // Eagerly warm chain info cache (bech32 prefix, decimals, features)
+        getChainInfo(api).catch(() => {})
+
         const apiUrl = getConfig().apiUrl
         if (!apiUrl) {
           console.warn('API URL is not configured')

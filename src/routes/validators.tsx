@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { api } from "@/lib/api"
 import { formatAddress, formatNumber, formatTimeAgo } from "@/lib/utils"
+import { formatDenomAmount } from "@/lib/denom"
+import { getChainBaseDenom, getChainDisplayDenom } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
 
 type SortField = "tokens" | "moniker" | "commission" | "status" | "delegators"
@@ -153,7 +155,7 @@ export default function ValidatorsPage() {
 							<CardContent className={css(styles.statCard)}>
 								<span className={css(styles.statLabel)}>Total Bonded</span>
 								<span className={css(styles.statValue)}>
-									{formatNumber(stats.total_bonded_tokens, 0)}
+									{formatDenomAmount(stats.total_bonded_tokens, getChainBaseDenom(), { maxDecimals: 0 })} {getChainDisplayDenom()}
 								</span>
 							</CardContent>
 						</Card>
@@ -281,7 +283,7 @@ export default function ValidatorsPage() {
 													</span>
 													{v.tokens !== null && (
 														<span className={css(styles.tokensValue)}>
-															{formatNumber(v.tokens, 0)}
+															{formatDenomAmount(v.tokens, getChainBaseDenom(), { maxDecimals: 0 })} {getChainDisplayDenom()}
 														</span>
 													)}
 												</div>

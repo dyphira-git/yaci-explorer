@@ -228,6 +228,43 @@ export function getAlternateAddress(address: string, bech32Prefix?: string): str
   return null
 }
 
+/**
+ * Re-encode a bech32 address with a valid checksum.
+ * Fixes addresses where the HRP was naively swapped without recomputing the checksum.
+ * Returns null if the address format is not recognizable as bech32.
+ */
+export function fixBech32Address(address: string): string | null {
+  // If it already validates, return as-is
+  if (isValidBech32Address(address)) return address
+
+  const lower = address.toLowerCase()
+  if (!/^[a-z]+1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38,}$/.test(lower)) {
+    return null
+  }
+
+  const pos = lower.lastIndexOf('1')
+  if (pos < 1 || pos + 7 > lower.length) return null
+
+  const prefix = lower.slice(0, pos)
+  const dataStr = lower.slice(pos + 1)
+
+  // Decode data chars to 5-bit values
+  const values: number[] = []
+  for (const char of dataStr) {
+    const idx = BECH32_ALPHABET.indexOf(char)
+    if (idx === -1) return null
+    values.push(idx)
+  }
+
+  // Strip old checksum (last 6), convert payload to bytes
+  const payload = values.slice(0, -6)
+  const bytes = convertBits(payload, 5, 8, false)
+  if (!bytes || bytes.length !== 20) return null
+
+  // Re-encode with correct checksum for this prefix
+  return bech32Encode(prefix, new Uint8Array(bytes))
+}
+
 /** Check if EVM address is a contract by calling eth_getCode */
 export async function isEvmContract(address: string, rpcUrl: string): Promise<boolean> {
   try {
