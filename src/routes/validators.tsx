@@ -273,17 +273,8 @@ export default function ValidatorsPage() {
 													{formatAddress(v.operator_address, 8)}
 												</Link>
 											</TableCell>
-											<TableCell>
-												<div className={css(styles.votingPower)}>
-													<span className={css(styles.pctValue)}>
-														{v.voting_power_pct?.toFixed(2)}%
-													</span>
-													{v.tokens !== null && (
-														<span className={css(styles.tokensValue)}>
-															{formatDenomAmount(v.tokens, getChainBaseDenom(), { maxDecimals: 0 })} {getChainDisplayDenom()}
-														</span>
-													)}
-												</div>
+											<TableCell className={css(styles.monoText)}>
+												{v.voting_power_pct?.toFixed(2)}%
 											</TableCell>
 											<TableCell className={css(styles.monoText)}>
 												{formatCommission(v.commission_rate)}
@@ -484,20 +475,6 @@ const styles = {
 		fontFamily: "mono",
 		fontSize: "xs",
 		_hover: { color: "accent.default" },
-	},
-	votingPower: {
-		display: "flex",
-		flexDirection: "column",
-		gap: "0.5",
-	},
-	pctValue: {
-		fontSize: "sm",
-		fontWeight: "semibold",
-	},
-	tokensValue: {
-		fontSize: "xs",
-		color: "fg.muted",
-		fontFamily: "mono",
 	},
 	monoText: {
 		fontFamily: "mono",
