@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { getConfig } from '@/lib/env'
-import { formatNumber, formatTimeAgo, formatNativeFee, formatRawFee } from '@/lib/utils'
+import { formatNumber, formatTimeAgo, formatNativeFee } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { MessageDetails } from '@/components/MessageDetails'
@@ -345,12 +345,7 @@ export default function TransactionDetailPage() {
                   <div className={css(styles.fieldValueSmall)}>
                     {feeAmounts.length > 0
                       ? feeAmounts.map((fee: any, idx: number) => (
-                          <div key={idx}>
-                            <span>{formatNativeFee(fee.amount, fee.denom)}</span>
-                            <span className={css({ fontSize: 'xs', color: 'fg.muted', ml: '1' })}>
-                              ({formatRawFee(fee.amount, fee.denom)})
-                            </span>
-                          </div>
+                          <span key={idx}>{formatNativeFee(fee.amount, fee.denom)}</span>
                         ))
                       : 'N/A'}
                   </div>

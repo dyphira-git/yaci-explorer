@@ -21,6 +21,7 @@ interface MessageMetadata {
   // Staking
   delegatorAddress?: string
   validatorAddress?: string
+  validatorAddr?: string // MsgUnjail uses this field name
   validatorSrcAddress?: string
   validatorDstAddress?: string
 
@@ -553,8 +554,8 @@ export function MessageDetails({ type, metadata, events }: MessageDetailsProps) 
           <Shield className={css({ h: '4', w: '4', color: 'orange.600' })} />
           <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'orange.600' })}>Unjail Validator</span>
         </div>
-        {metadata.validatorAddress && (
-          <DetailRow label="Validator" value={metadata.validatorAddress} copyable icon={Shield} />
+        {(metadata.validatorAddr || metadata.validatorAddress) && (
+          <DetailRow label="Validator" value={(metadata.validatorAddr || metadata.validatorAddress) as string} copyable icon={Shield} />
         )}
       </div>
     )
