@@ -153,6 +153,20 @@ function getEventAttribute(events: Array<{ event_type: string; msg_index?: numbe
   return attr?.value || null
 }
 
+/**
+ * Formats a commission rate value as percentage.
+ * Handles Cosmos SDK Dec format (10^18 scale) and standard decimal strings.
+ */
+function formatCommissionRate(rate: string | undefined): string {
+  if (!rate) return '-'
+  const n = Number(rate)
+  if (Number.isNaN(n)) return rate
+  let normalized = n
+  if (normalized > 1e6) normalized = normalized / 1e18
+  const pct = normalized > 1 ? normalized : normalized * 100
+  return `${pct.toFixed(2)}%`
+}
+
 function DetailRow({ label, value, copyable, icon: Icon }: {
   label: string
   value: string
@@ -412,6 +426,140 @@ export function MessageDetails({ type, metadata, events }: MessageDetailsProps) 
     )
   }
 
+  // Staking - Create Validator
+  if (type === '/cosmos.staking.v1beta1.MsgCreateValidator') {
+    const desc = metadata.description as Record<string, string> | undefined
+    const commission = metadata.commission as Record<string, string> | undefined
+    const selfDelegation = (metadata.value || metadata.amount) as CoinAmount | CoinAmount[] | undefined
+    const selfDelegationAmount = selfDelegation && !Array.isArray(selfDelegation) ? selfDelegation : normalizeAmounts(metadata.amount)[0]
+
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Shield className={css({ h: '4', w: '4', color: 'green.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'green.600' })}>Create Validator</span>
+        </div>
+        {desc?.moniker && (
+          <div className={css({ p: '3', bg: 'green.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'green.500/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'green.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '1' })}>Moniker</label>
+            <div className={css({ fontSize: 'lg', fontWeight: 'bold' })}>{desc.moniker}</div>
+          </div>
+        )}
+        {metadata.delegatorAddress && (
+          <DetailRow label="Delegator" value={metadata.delegatorAddress} copyable icon={Users} />
+        )}
+        {metadata.validatorAddress && (
+          <DetailRow label="Validator" value={metadata.validatorAddress} copyable icon={Shield} />
+        )}
+        {commission && (
+          <div className={css({ p: '3', bg: 'bg.muted/30', rounded: 'lg' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'fg.muted', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Commission</label>
+            <div className={css({ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3' })}>
+              <div>
+                <span className={css({ fontSize: 'xs', color: 'fg.muted', display: 'block' })}>Rate</span>
+                <span className={css({ fontSize: 'sm', fontWeight: 'semibold', fontFamily: 'mono' })}>{formatCommissionRate(commission.rate)}</span>
+              </div>
+              <div>
+                <span className={css({ fontSize: 'xs', color: 'fg.muted', display: 'block' })}>Max Rate</span>
+                <span className={css({ fontSize: 'sm', fontWeight: 'semibold', fontFamily: 'mono' })}>{formatCommissionRate(commission.maxRate || commission.max_rate)}</span>
+              </div>
+              <div>
+                <span className={css({ fontSize: 'xs', color: 'fg.muted', display: 'block' })}>Max Change</span>
+                <span className={css({ fontSize: 'sm', fontWeight: 'semibold', fontFamily: 'mono' })}>{formatCommissionRate(commission.maxChangeRate || commission.max_change_rate)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {selfDelegationAmount && (
+          <div className={css({ p: '3', bg: 'green.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'green.500/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'green.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Self-Delegation</label>
+            <div className={css({ fontSize: 'lg', fontWeight: 'bold', color: 'green.600' })}>
+              {formatDenom(selfDelegationAmount.amount, selfDelegationAmount.denom, getDenomDisplay)}
+            </div>
+          </div>
+        )}
+        {metadata.minSelfDelegation ? (
+          <DetailRow label="Min Self-Delegation" value={String(metadata.minSelfDelegation)} />
+        ) : null}
+        {desc?.details && (
+          <div className={css({ p: '3', bg: 'bg.muted/30', rounded: 'lg' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'fg.muted', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '1' })}>Details</label>
+            <div className={css({ fontSize: 'sm' })}>{desc.details}</div>
+          </div>
+        )}
+        {desc?.website && (
+          <DetailRow label="Website" value={desc.website} />
+        )}
+        {desc?.identity && (
+          <DetailRow label="Identity" value={desc.identity} copyable />
+        )}
+      </div>
+    )
+  }
+
+  // Staking - Edit Validator
+  if (type === '/cosmos.staking.v1beta1.MsgEditValidator') {
+    const desc = metadata.description as Record<string, string> | undefined
+    const commissionRate = (metadata.commissionRate || metadata.commission_rate) as string | undefined
+    const isModified = (val: string | undefined): boolean => !!val && val !== '[do-not-modify]'
+
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Shield className={css({ h: '4', w: '4', color: 'blue.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'blue.600' })}>Edit Validator</span>
+        </div>
+        {metadata.validatorAddress && (
+          <DetailRow label="Validator" value={metadata.validatorAddress} copyable icon={Shield} />
+        )}
+        {isModified(desc?.moniker) && (
+          <DetailRow label="Moniker" value={desc?.moniker || ''} />
+        )}
+        {commissionRate && (
+          <div className={css({ p: '3', bg: 'blue.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'blue.500/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'blue.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>New Commission Rate</label>
+            <div className={css({ fontSize: 'lg', fontWeight: 'bold', color: 'blue.600' })}>
+              {formatCommissionRate(commissionRate)}
+            </div>
+          </div>
+        )}
+        {isModified(desc?.details) && (
+          <div className={css({ p: '3', bg: 'bg.muted/30', rounded: 'lg' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'fg.muted', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '1' })}>Details</label>
+            <div className={css({ fontSize: 'sm' })}>{desc?.details}</div>
+          </div>
+        )}
+        {isModified(desc?.website) && (
+          <DetailRow label="Website" value={desc?.website || ''} />
+        )}
+        {isModified(desc?.identity) && (
+          <DetailRow label="Identity" value={desc?.identity || ''} copyable />
+        )}
+        {isModified(desc?.securityContact || desc?.security_contact) && (
+          <DetailRow label="Security Contact" value={desc?.securityContact || desc?.security_contact || ''} />
+        )}
+        {metadata.minSelfDelegation ? (
+          <DetailRow label="Min Self-Delegation" value={String(metadata.minSelfDelegation)} />
+        ) : null}
+      </div>
+    )
+  }
+
+  // Slashing - Unjail
+  if (type === '/cosmos.slashing.v1beta1.MsgUnjail') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Shield className={css({ h: '4', w: '4', color: 'orange.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'orange.600' })}>Unjail Validator</span>
+        </div>
+        {metadata.validatorAddress && (
+          <DetailRow label="Validator" value={metadata.validatorAddress} copyable icon={Shield} />
+        )}
+      </div>
+    )
+  }
+
   // Distribution - Withdraw Rewards
   if (type === '/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward') {
     // Extract reward amounts from withdraw_rewards event
@@ -463,6 +611,53 @@ export function MessageDetails({ type, metadata, events }: MessageDetailsProps) 
           <div className={css({ p: '3', bg: 'purple.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'purple.500/20' })}>
             <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'purple.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Commission Claimed</label>
             {commissionAmounts.map((amt, idx) => (
+              <div key={idx} className={css({ fontSize: 'lg', fontWeight: 'bold', color: 'purple.600' })}>
+                {formatDenom(amt.amount, amt.denom, getDenomDisplay)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Distribution - Set Withdraw Address
+  if (type === '/cosmos.distribution.v1beta1.MsgSetWithdrawAddress') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Coins className={css({ h: '4', w: '4', color: 'purple.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'purple.600' })}>Set Withdraw Address</span>
+        </div>
+        {metadata.delegatorAddress && (
+          <DetailRow label="Delegator" value={metadata.delegatorAddress} copyable icon={Users} />
+        )}
+        <div className={css({ display: 'flex', justifyContent: 'center' })}>
+          <ArrowRight className={css({ h: '4', w: '4', color: 'fg.muted' })} />
+        </div>
+        {metadata.withdrawAddress && (
+          <DetailRow label="Withdraw Address" value={metadata.withdrawAddress} copyable icon={Users} />
+        )}
+      </div>
+    )
+  }
+
+  // Distribution - Fund Community Pool
+  if (type === '/cosmos.distribution.v1beta1.MsgFundCommunityPool') {
+    const amounts = normalizeAmounts(metadata.amount)
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Coins className={css({ h: '4', w: '4', color: 'purple.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'purple.600' })}>Fund Community Pool</span>
+        </div>
+        {(metadata.depositor as string || metadata.sender) && (
+          <DetailRow label="Depositor" value={String(metadata.depositor || metadata.sender)} copyable icon={Users} />
+        )}
+        {amounts.length > 0 && (
+          <div className={css({ p: '3', bg: 'purple.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'purple.500/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'purple.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Amount</label>
+            {amounts.map((amt, idx) => (
               <div key={idx} className={css({ fontSize: 'lg', fontWeight: 'bold', color: 'purple.600' })}>
                 {formatDenom(amt.amount, amt.denom, getDenomDisplay)}
               </div>
@@ -546,6 +741,38 @@ export function MessageDetails({ type, metadata, events }: MessageDetailsProps) 
           <div className={css({ p: '3', bg: 'bg.muted/30', rounded: 'lg' })}>
             <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'fg.muted', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Vote</label>
             <Badge variant="outline" className={css({ fontSize: 'sm' })}>{metadata.option}</Badge>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Governance - Deposit
+  if (type === '/cosmos.gov.v1beta1.MsgDeposit' || type === '/cosmos.gov.v1.MsgDeposit') {
+    const depositAmounts = normalizeAmounts(metadata.amount)
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Vote className={css({ h: '4', w: '4', color: 'indigo.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'indigo.600' })}>Governance Deposit</span>
+        </div>
+        {metadata.proposalId && (
+          <div className={css({ p: '3', bg: 'indigo.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'indigo.500/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'indigo.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '1' })}>Proposal ID</label>
+            <div className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'indigo.600' })}>#{metadata.proposalId}</div>
+          </div>
+        )}
+        {(metadata.depositor as string || metadata.sender) && (
+          <DetailRow label="Depositor" value={String(metadata.depositor || metadata.sender)} copyable icon={Users} />
+        )}
+        {depositAmounts.length > 0 && (
+          <div className={css({ p: '3', bg: 'green.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'green.500/20' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'green.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Deposit Amount</label>
+            {depositAmounts.map((amt, idx) => (
+              <div key={idx} className={css({ fontSize: 'lg', fontWeight: 'bold', color: 'green.600' })}>
+                {formatDenom(amt.amount, amt.denom, getDenomDisplay)}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -687,6 +914,106 @@ export function MessageDetails({ type, metadata, events }: MessageDetailsProps) 
               </Badge>
             ))}
           </div>
+        )}
+      </div>
+    )
+  }
+
+  // Authz - Grant
+  if (type === '/cosmos.authz.v1beta1.MsgGrant') {
+    const grant = metadata.grant as { authorization?: { '@type'?: string }; expiration?: string } | undefined
+    const authType = grant?.authorization?.['@type']?.split('.').pop() || 'Unknown'
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Users className={css({ h: '4', w: '4', color: 'pink.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'pink.600' })}>Grant Authorization</span>
+        </div>
+        {metadata.granter && (
+          <DetailRow label="Granter" value={metadata.granter} copyable icon={Users} />
+        )}
+        <div className={css({ display: 'flex', justifyContent: 'center' })}>
+          <ArrowRight className={css({ h: '4', w: '4', color: 'fg.muted' })} />
+        </div>
+        {metadata.grantee && (
+          <DetailRow label="Grantee" value={metadata.grantee} copyable icon={Users} />
+        )}
+        <div className={css({ p: '3', bg: 'pink.500/10', rounded: 'lg', borderWidth: '1px', borderColor: 'pink.500/20' })}>
+          <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'pink.600', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '2' })}>Authorization Type</label>
+          <Badge variant="outline">{authType}</Badge>
+        </div>
+        {grant?.expiration && (
+          <DetailRow label="Expiration" value={grant.expiration} />
+        )}
+      </div>
+    )
+  }
+
+  // Authz - Revoke
+  if (type === '/cosmos.authz.v1beta1.MsgRevoke') {
+    const msgTypeUrl = (metadata.msgTypeUrl || metadata.msg_type_url) as string | undefined
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Users className={css({ h: '4', w: '4', color: 'pink.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'pink.600' })}>Revoke Authorization</span>
+        </div>
+        {metadata.granter && (
+          <DetailRow label="Granter" value={metadata.granter} copyable icon={Users} />
+        )}
+        {metadata.grantee && (
+          <DetailRow label="Grantee" value={metadata.grantee} copyable icon={Users} />
+        )}
+        {msgTypeUrl && (
+          <div className={css({ p: '3', bg: 'bg.muted/30', rounded: 'lg' })}>
+            <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'fg.muted', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '1' })}>Revoked Message Type</label>
+            <Badge variant="outline">{msgTypeUrl.split('.').pop() || msgTypeUrl}</Badge>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Feegrant - Grant Allowance
+  if (type === '/cosmos.feegrant.v1beta1.MsgGrantAllowance') {
+    const allowance = metadata.allowance as { '@type'?: string } | undefined
+    const allowanceType = allowance?.['@type']?.split('.').pop() || 'Unknown'
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Coins className={css({ h: '4', w: '4', color: 'pink.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'pink.600' })}>Grant Fee Allowance</span>
+        </div>
+        {metadata.granter && (
+          <DetailRow label="Granter" value={metadata.granter} copyable icon={Users} />
+        )}
+        <div className={css({ display: 'flex', justifyContent: 'center' })}>
+          <ArrowRight className={css({ h: '4', w: '4', color: 'fg.muted' })} />
+        </div>
+        {metadata.grantee && (
+          <DetailRow label="Grantee" value={metadata.grantee} copyable icon={Users} />
+        )}
+        <div className={css({ p: '3', bg: 'bg.muted/30', rounded: 'lg' })}>
+          <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'fg.muted', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block', mb: '1' })}>Allowance Type</label>
+          <Badge variant="outline">{allowanceType}</Badge>
+        </div>
+      </div>
+    )
+  }
+
+  // Feegrant - Revoke Allowance
+  if (type === '/cosmos.feegrant.v1beta1.MsgRevokeAllowance') {
+    return (
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '2', mb: '3' })}>
+          <Coins className={css({ h: '4', w: '4', color: 'pink.600' })} />
+          <span className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'pink.600' })}>Revoke Fee Allowance</span>
+        </div>
+        {metadata.granter && (
+          <DetailRow label="Granter" value={metadata.granter} copyable icon={Users} />
+        )}
+        {metadata.grantee && (
+          <DetailRow label="Grantee" value={metadata.grantee} copyable icon={Users} />
         )}
       </div>
     )

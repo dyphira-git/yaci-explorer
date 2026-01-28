@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { api } from "@/lib/api"
 import { formatAddress } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
-import { getChainBaseDenom, getChainDisplayDenom } from "@/lib/chain-info"
+import { getChainInfo } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
 
 type SortField = "tokens" | "moniker" | "commission" | "status" | "delegators"
@@ -72,6 +72,12 @@ export default function ValidatorsPage() {
 		queryKey: ["validator-stats"],
 		queryFn: () => api.getValidatorStats(),
 		staleTime: 30000,
+	})
+
+	const { data: chainInfo } = useQuery({
+		queryKey: ["chain-info"],
+		queryFn: () => getChainInfo(api),
+		staleTime: Infinity,
 	})
 
 	const { data: validatorsData, isLoading: validatorsLoading } = useQuery({
@@ -151,7 +157,7 @@ export default function ValidatorsPage() {
 							<CardContent className={css(styles.statCard)}>
 								<span className={css(styles.statLabel)}>Total Bonded</span>
 								<span className={css(styles.statValue)}>
-									{formatDenomAmount(stats.total_bonded_tokens, getChainBaseDenom(), { maxDecimals: 0 })} {getChainDisplayDenom()}
+									{formatDenomAmount(stats.total_bonded_tokens, chainInfo?.baseDenom || 'arai', { maxDecimals: 0 })} {chainInfo?.displayDenom || 'RAI'}
 								</span>
 							</CardContent>
 						</Card>

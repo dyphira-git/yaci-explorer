@@ -18,7 +18,6 @@ const links = {
     { label: 'Documentation', href: 'https://docs.republicai.io/' },
     { label: 'Whitepaper', href: 'https://whitepaper.republicai.io/' },
     { label: 'Block Explorer', href: 'https://explorer.republicai.io/' },
-    { label: 'Testnet Faucet', href: 'https://faucet.republicai.io' },
   ],
   legal: [
     { label: 'Privacy Policy', href: 'https://points.republicai.io/privacy' },
