@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AddressChip } from "@/components/AddressChip"
 import { api } from "@/lib/api"
-import { formatAddress, formatTimeAgo, formatNumber, fixBech32Address } from "@/lib/utils"
+import { formatAddress, formatTimeAgo, fixBech32Address } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainBaseDenom, getChainDisplayDenom } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
@@ -282,19 +282,11 @@ export default function ValidatorDetailPage() {
 														{eventTypeBadge(event.event_type)}
 													</TableCell>
 													<TableCell>
-														{event.delegator_address ? (() => {
-														const addr = fixBech32Address(event.delegator_address) || event.delegator_address
-														return (
-															<Link
-																to={`/addr/${addr}`}
-																className={css(styles.addressLink)}
-															>
-																{formatAddress(addr, 6)}
-															</Link>
-														)
-													})() : (
-															<span className={css(styles.mutedText)}>-</span>
-														)}
+														{event.delegator_address ? (
+														<AddressChip address={fixBech32Address(event.delegator_address) || event.delegator_address} />
+													) : (
+														<span className={css(styles.mutedText)}>-</span>
+													)}
 													</TableCell>
 													<TableCell className={css(styles.monoSmall)}>
 														{event.amount
