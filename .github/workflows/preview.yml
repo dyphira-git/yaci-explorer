@@ -59,6 +59,18 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Destroy old preview apps
+        run: |
+          CURRENT_APP="yaci-explorer-pr-${{ github.event.pull_request.number }}"
+          for app in $(flyctl apps list --json | jq -r '.[].Name' | grep '^yaci-explorer-pr-'); do
+            if [ "$app" != "$CURRENT_APP" ]; then
+              echo "Destroying old preview app: $app"
+              flyctl apps destroy "$app" --yes || true
+            fi
+          done
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Create preview app if needed
         run: |
           PREVIEW_APP="yaci-explorer-pr-${{ github.event.pull_request.number }}"
