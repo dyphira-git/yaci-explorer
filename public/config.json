@@ -43,7 +43,7 @@
     "networkRefetchMs": 10000
   },
   "branding": {
-    "logoUrl": "/logo.svg",
+    "logoUrl": "",
     "faviconUrl": "/favicon.svg",
     "primaryColor": "",
     "accentColor": "",
