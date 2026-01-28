@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { useDenom } from '@/contexts/DenomContext'
 import { formatNumber } from '@/lib/utils'
-import { Copy, ArrowRight, Coins, Users, Vote, Lock, Cpu, Shield, Star } from 'lucide-react'
+import { Copy, CheckCircle, ArrowRight, Coins, Users, Vote, Lock, Cpu, Shield, Star } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
@@ -168,12 +169,24 @@ function formatCommissionRate(rate: string | undefined): string {
   return `${pct.toFixed(2)}%`
 }
 
+/** Matches bech32 addresses (e.g. rai1..., raivaloper1..., cosmos1...) and EVM hex addresses (0x...) */
+const ADDRESS_REGEX = /^[a-z]+1[a-z0-9]{38,}$|^0x[a-fA-F0-9]{40}$/
+
 function DetailRow({ label, value, copyable, icon: Icon }: {
   label: string
   value: string
   copyable?: boolean
   icon?: React.ComponentType<{ className?: string }>
 }) {
+  const [copied, setCopied] = useState(false)
+  const isAddress = copyable && ADDRESS_REGEX.test(value)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
     <div className={css({ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: '4', p: '3', bg: 'bg.muted/30', rounded: 'lg' })}>
       <div className={css({ display: 'flex', alignItems: 'center', gap: '2', minW: '0' })}>
@@ -182,7 +195,13 @@ function DetailRow({ label, value, copyable, icon: Icon }: {
           <label className={css({ fontSize: 'xs', fontWeight: 'medium', color: 'fg.muted', textTransform: 'uppercase', letterSpacing: 'wider', display: 'block' })}>
             {label}
           </label>
-          <p className={css({ fontSize: 'sm', fontFamily: 'mono', wordBreak: 'break-all', mt: '1' })}>{value}</p>
+          {isAddress ? (
+            <Link to={`/addr/${value}`} className={css({ fontSize: 'sm', fontFamily: 'mono', wordBreak: 'break-all', mt: '1', display: 'block', color: 'accent.default', _hover: { textDecoration: 'underline' } })}>
+              {value}
+            </Link>
+          ) : (
+            <p className={css({ fontSize: 'sm', fontFamily: 'mono', wordBreak: 'break-all', mt: '1' })}>{value}</p>
+          )}
         </div>
       </div>
       {copyable && (
@@ -190,9 +209,12 @@ function DetailRow({ label, value, copyable, icon: Icon }: {
           variant="ghost"
           size="icon"
           className={css({ h: '6', w: '6', flexShrink: '0' })}
-          onClick={() => navigator.clipboard.writeText(value)}
+          onClick={handleCopy}
         >
-          <Copy className={css({ h: '3', w: '3' })} />
+          {copied
+            ? <CheckCircle className={css({ h: '3', w: '3', color: 'green.500' })} />
+            : <Copy className={css({ h: '3', w: '3' })} />
+          }
         </Button>
       )}
     </div>

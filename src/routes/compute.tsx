@@ -20,8 +20,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AddressChip } from "@/components/AddressChip"
 import { api } from "@/lib/api"
-import { formatAddress, formatTimeAgo } from "@/lib/utils"
+import { formatTimeAgo } from "@/lib/utils"
 import { css } from "@/styled-system/css"
 
 type TabId = "jobs" | "benchmarks"
@@ -219,21 +220,11 @@ export default function ComputePage() {
 													</Link>
 												</TableCell>
 												<TableCell>
-													<Link
-														to={`/addr/${job.creator}`}
-														className={css(styles.addressLink)}
-													>
-														{formatAddress(job.creator, 6)}
-													</Link>
-												</TableCell>
-												<TableCell>
-													<Link
-														to={`/addr/${job.target_validator}`}
-														className={css(styles.addressLink)}
-													>
-														{formatAddress(job.target_validator, 6)}
-													</Link>
-												</TableCell>
+												<AddressChip address={job.creator} />
+											</TableCell>
+											<TableCell>
+												<AddressChip address={job.target_validator} />
+											</TableCell>
 												<TableCell>{statusBadge(job.status)}</TableCell>
 												<TableCell className={css(styles.mutedText)}>
 													{job.submit_time
@@ -319,13 +310,8 @@ export default function ComputePage() {
 													#{bench.benchmark_id}
 												</TableCell>
 												<TableCell>
-													<Link
-														to={`/addr/${bench.creator}`}
-														className={css(styles.addressLink)}
-													>
-														{formatAddress(bench.creator, 6)}
-													</Link>
-												</TableCell>
+												<AddressChip address={bench.creator} />
+											</TableCell>
 												<TableCell>
 													{bench.benchmark_type || (
 														<span className={css(styles.mutedText)}>-</span>

@@ -7,8 +7,9 @@ import { EvmNav } from '@/components/common/evm-nav'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { AddressChip } from '@/components/AddressChip'
 import { api } from '@/lib/api'
-import { formatAddress, formatNumber } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { css } from '@/styled-system/css'
 
@@ -115,13 +116,8 @@ export default function EvmTokensPage() {
 											</div>
 										</TableCell>
 										<TableCell>
-											<Link
-												to={`/addr/${token.address}`}
-												className={css(styles.addressLink)}
-											>
-												<code>{formatAddress(token.address, 8)}</code>
-											</Link>
-										</TableCell>
+										<AddressChip address={token.address} />
+									</TableCell>
 										<TableCell>
 											<Badge variant="secondary">
 												{formatTokenType(token.type)}

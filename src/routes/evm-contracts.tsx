@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router'
 import { FileCode2, CheckCircle, XCircle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { EvmNav } from '@/components/common/evm-nav'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { AddressChip } from '@/components/AddressChip'
 import { api } from '@/lib/api'
-import { formatAddress } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { css } from '@/styled-system/css'
 
@@ -77,14 +76,8 @@ export default function EvmContractsPage() {
 								{data.map((contract) => (
 									<TableRow key={contract.address}>
 										<TableCell>
-											<Link
-												to={`/addr/${contract.address}`}
-												className={css(styles.addressLink)}
-											>
-												<FileCode2 className={css(styles.contractIcon)} />
-												<code>{formatAddress(contract.address, 8)}</code>
-											</Link>
-										</TableCell>
+										<AddressChip address={contract.address} />
+									</TableCell>
 										<TableCell>
 											{contract.name || (
 												<span className={css(styles.mutedText)}>Unknown</span>
@@ -92,12 +85,7 @@ export default function EvmContractsPage() {
 										</TableCell>
 										<TableCell>
 											{contract.creator ? (
-												<Link
-													to={`/addr/${contract.creator}`}
-													className={css(styles.creatorLink)}
-												>
-													{formatAddress(contract.creator, 6)}
-												</Link>
+												<AddressChip address={contract.creator} />
 											) : (
 												<span className={css(styles.mutedText)}>-</span>
 											)}
