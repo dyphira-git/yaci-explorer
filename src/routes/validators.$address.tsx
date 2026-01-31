@@ -18,7 +18,7 @@ import { AddressChip } from "@/components/AddressChip"
 import { api } from "@/lib/api"
 import { formatAddress, formatTimeAgo, fixBech32Address } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
-import { getChainBaseDenom, getChainDisplayDenom } from "@/lib/chain-info"
+import { getChainInfo } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
 
 /**
@@ -78,6 +78,16 @@ export default function ValidatorDetailPage() {
 	const [eventPage, setEventPage] = useState(0)
 	const [eventTypeFilter, setEventTypeFilter] = useState<string | undefined>()
 	const eventLimit = 20
+
+	// Load chain info for proper denom display
+	const { data: chainInfo } = useQuery({
+		queryKey: ["chain-info"],
+		queryFn: () => getChainInfo(api),
+		staleTime: Infinity,
+	})
+
+	const baseDenom = chainInfo?.baseDenom || "unknown"
+	const displayDenom = chainInfo?.displayDenom || "UNKNOWN"
 
 	const {
 		data: validator,
@@ -290,7 +300,7 @@ export default function ValidatorDetailPage() {
 													</TableCell>
 													<TableCell className={css(styles.monoSmall)}>
 														{event.amount
-															? `${formatDenomAmount(event.amount, event.denom || getChainBaseDenom(), { maxDecimals: 2 })} ${getChainDisplayDenom()}`
+															? `${formatDenomAmount(event.amount, event.denom || baseDenom, { maxDecimals: 2 })} ${displayDenom}`
 															: "-"}
 													</TableCell>
 													<TableCell>
@@ -353,7 +363,7 @@ export default function ValidatorDetailPage() {
 									<span className={css(styles.sidebarLabel)}>Tokens</span>
 									<span className={css(styles.sidebarValue)}>
 										{validator.tokens !== null
-											? `${formatDenomAmount(validator.tokens, getChainBaseDenom(), { maxDecimals: 0 })} ${getChainDisplayDenom()}`
+											? `${formatDenomAmount(validator.tokens, baseDenom, { maxDecimals: 0 })} ${displayDenom}`
 											: "-"}
 									</span>
 								</div>
@@ -375,7 +385,7 @@ export default function ValidatorDetailPage() {
 											Min Self-Delegation
 										</span>
 										<span className={css(styles.sidebarValue)}>
-											{formatDenomAmount(validator.min_self_delegation, getChainBaseDenom(), { maxDecimals: 0 })} {getChainDisplayDenom()}
+											{formatDenomAmount(validator.min_self_delegation, baseDenom, { maxDecimals: 0 })} {displayDenom}
 										</span>
 									</div>
 								)}
@@ -383,52 +393,54 @@ export default function ValidatorDetailPage() {
 						</CardContent>
 					</Card>
 
-					{/* Chain Info */}
-					<Card>
-						<CardHeader>
-							<CardTitle>Chain Info</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className={css(styles.sidebarFields)}>
-								{validator.creation_height && (
-									<div className={css(styles.sidebarRow)}>
-										<span className={css(styles.sidebarLabel)}>
-											Creation Height
-										</span>
-										<Link
-											to={`/blocks/${validator.creation_height}`}
-											className={css(styles.txLink)}
-										>
-											#{validator.creation_height.toLocaleString()}
-										</Link>
-									</div>
-								)}
-								{validator.first_seen_tx && (
-									<div className={css(styles.sidebarRow)}>
-										<span className={css(styles.sidebarLabel)}>
-											First Seen Tx
-										</span>
-										<Link
-											to={`/tx/${validator.first_seen_tx}`}
-											className={css(styles.txLink)}
-										>
-											{formatAddress(validator.first_seen_tx, 6)}
-										</Link>
-									</div>
-								)}
-								{validator.consensus_address && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>
-											Consensus Address
-										</label>
-										<p className={css(styles.monoValueSmall)}>
-											{validator.consensus_address}
-										</p>
-									</div>
-								)}
-							</div>
-						</CardContent>
-					</Card>
+					{/* Validator History - only show if there's data */}
+					{(validator.creation_height || validator.first_seen_tx || validator.consensus_address) && (
+						<Card>
+							<CardHeader>
+								<CardTitle>Validator History</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className={css(styles.sidebarFields)}>
+									{validator.creation_height && (
+										<div className={css(styles.sidebarRow)}>
+											<span className={css(styles.sidebarLabel)}>
+												Creation Height
+											</span>
+											<Link
+												to={`/blocks/${validator.creation_height}`}
+												className={css(styles.txLink)}
+											>
+												#{validator.creation_height.toLocaleString()}
+											</Link>
+										</div>
+									)}
+									{validator.first_seen_tx && (
+										<div className={css(styles.sidebarRow)}>
+											<span className={css(styles.sidebarLabel)}>
+												First Seen Tx
+											</span>
+											<Link
+												to={`/tx/${validator.first_seen_tx}`}
+												className={css(styles.txLink)}
+											>
+												{formatAddress(validator.first_seen_tx, 6)}
+											</Link>
+										</div>
+									)}
+									{validator.consensus_address && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>
+												Consensus Address
+											</label>
+											<p className={css(styles.monoValueSmall)}>
+												{validator.consensus_address}
+											</p>
+										</div>
+									)}
+								</div>
+							</CardContent>
+						</Card>
+					)}
 
 					{/* IPFS Info */}
 					{validator.ipfs_peer_id && (
