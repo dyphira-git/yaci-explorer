@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
 import { Shield } from "lucide-react"
@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { api } from "@/lib/api"
+import { api, type Validator } from "@/lib/api"
 import { formatAddress } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainInfo } from "@/lib/chain-info"
@@ -28,6 +28,53 @@ import { css } from "@/styled-system/css"
 
 type SortField = "tokens" | "moniker" | "commission" | "status" | "delegators"
 type SortDir = "asc" | "desc"
+
+/** Checks if validator is active (bonded and not jailed) */
+function isActiveValidator(v: Validator): boolean {
+	return v.status === "BOND_STATUS_BONDED" && !v.jailed
+}
+
+/**
+ * Sorts validators with active first, then by secondary field.
+ * Primary: active validators before inactive
+ * Secondary: user-selected field and direction
+ */
+function sortValidators(
+	validators: Validator[] | undefined,
+	sortBy: SortField,
+	sortDir: SortDir
+): Validator[] {
+	if (!validators) return []
+	return [...validators].sort((a, b) => {
+		// Primary sort: active validators first
+		const aActive = isActiveValidator(a)
+		const bActive = isActiveValidator(b)
+		if (aActive !== bActive) {
+			return aActive ? -1 : 1
+		}
+
+		// Secondary sort by selected field
+		let cmp = 0
+		switch (sortBy) {
+			case "moniker":
+				cmp = (a.moniker || "").localeCompare(b.moniker || "")
+				break
+			case "tokens":
+				cmp = (a.voting_power_pct || 0) - (b.voting_power_pct || 0)
+				break
+			case "commission":
+				cmp = (a.commission_rate || 0) - (b.commission_rate || 0)
+				break
+			case "status":
+				cmp = (a.status || "").localeCompare(b.status || "")
+				break
+			case "delegators":
+				cmp = (a.delegator_count || 0) - (b.delegator_count || 0)
+				break
+		}
+		return sortDir === "desc" ? -cmp : cmp
+	})
+}
 
 /**
  * Returns a badge for validator bond status
@@ -62,9 +109,9 @@ function formatCommission(rate: number | null): string {
 
 export default function ValidatorsPage() {
 	const [page, setPage] = useState(0)
-	const [sortBy, setSortBy] = useState<SortField>("tokens")
+	// Default sort: moniker descending (Z-A) - secondary to the fixed active-first grouping
+	const [sortBy, setSortBy] = useState<SortField>("moniker")
 	const [sortDir, setSortDir] = useState<SortDir>("desc")
-	const [statusFilter, setStatusFilter] = useState<string | undefined>()
 	const [search, setSearch] = useState("")
 	const limit = 20
 
@@ -80,22 +127,35 @@ export default function ValidatorsPage() {
 		staleTime: Infinity,
 	})
 
+	// Fetch all validators for client-side sorting (active-first grouping)
 	const { data: validatorsData, isLoading: validatorsLoading } = useQuery({
-		queryKey: ["validators", page, sortBy, sortDir, statusFilter, search],
+		queryKey: ["validators-all", search],
 		queryFn: () =>
-			api.getValidatorsPaginated(limit, page * limit, {
-				sortBy,
-				sortDir,
-				status: statusFilter,
+			api.getValidatorsPaginated(500, 0, {
+				sortBy: "moniker",
+				sortDir: "asc",
 				search: search || undefined,
 			}),
 		staleTime: 15000,
 	})
 
+	// Sort validators: active first, then by user-selected secondary sort
+	const sortedValidators = useMemo(() => {
+		return sortValidators(validatorsData?.data, sortBy, sortDir)
+	}, [validatorsData, sortBy, sortDir])
+
+	// Paginate the sorted results
+	const paginatedValidators = useMemo(() => {
+		const start = page * limit
+		return sortedValidators.slice(start, start + limit)
+	}, [sortedValidators, page])
+
+	const totalPages = Math.ceil(sortedValidators.length / limit)
+
 	/** Toggles sort direction or sets a new sort field */
 	function handleSort(field: SortField) {
 		if (sortBy === field) {
-			setSortDir(d => (d === "desc" ? "asc" : "desc"))
+			setSortDir((d) => (d === "desc" ? "asc" : "desc"))
 		} else {
 			setSortBy(field)
 			setSortDir("desc")
@@ -165,7 +225,7 @@ export default function ValidatorsPage() {
 				) : null}
 			</div>
 
-			{/* Filters */}
+			{/* Search Filter */}
 			<div className={css(styles.filterRow)}>
 				<input
 					type="text"
@@ -177,19 +237,6 @@ export default function ValidatorsPage() {
 					}}
 					className={css(styles.searchInput)}
 				/>
-				<select
-					value={statusFilter || ""}
-					onChange={(e) => {
-						setStatusFilter(e.target.value || undefined)
-						setPage(0)
-					}}
-					className={css(styles.filterSelect)}
-				>
-					<option value="">All Statuses</option>
-					<option value="BOND_STATUS_BONDED">Active</option>
-					<option value="BOND_STATUS_UNBONDING">Unbonding</option>
-					<option value="BOND_STATUS_UNBONDED">Inactive</option>
-				</select>
 			</div>
 
 			{/* Validators Table */}
@@ -197,8 +244,8 @@ export default function ValidatorsPage() {
 				<CardHeader>
 					<CardTitle>Validator Set</CardTitle>
 					<CardDescription>
-						{validatorsData?.pagination
-							? `${validatorsData.pagination.total} validators`
+						{sortedValidators.length > 0
+							? `${sortedValidators.length} validators (active first, then by ${sortBy})`
 							: "Loading..."}
 					</CardDescription>
 				</CardHeader>
@@ -209,7 +256,7 @@ export default function ValidatorsPage() {
 								<Skeleton key={i} className={css(styles.skeleton)} />
 							))}
 						</div>
-					) : !validatorsData?.data?.length ? (
+					) : !paginatedValidators.length ? (
 						<div className={css(styles.emptyState)}>
 							<Shield className={css(styles.emptyIcon)} />
 							<h3 className={css(styles.emptyTitle)}>No Validators</h3>
@@ -222,7 +269,7 @@ export default function ValidatorsPage() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead className={css(styles.rankCol)}>Rank</TableHead>
+										<TableHead className={css(styles.rankCol)}>#</TableHead>
 										<TableHead
 											className={css(styles.sortableHead)}
 											onClick={() => handleSort("moniker")}
@@ -258,7 +305,7 @@ export default function ValidatorsPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{validatorsData.data.map((v, idx) => (
+									{paginatedValidators.map((v, idx) => (
 										<TableRow key={v.operator_address}>
 											<TableCell className={css(styles.rankCell)}>
 												{page * limit + idx + 1}
@@ -301,26 +348,23 @@ export default function ValidatorsPage() {
 								</TableBody>
 							</Table>
 
-							{validatorsData.pagination && (
+							{totalPages > 1 && (
 								<div className={css(styles.pagination)}>
 									<Button
 										variant="outline"
 										size="sm"
-										disabled={!validatorsData.pagination.has_prev}
+										disabled={page === 0}
 										onClick={() => setPage((p) => p - 1)}
 									>
 										Previous
 									</Button>
 									<span className={css(styles.pageInfo)}>
-										Page {page + 1} of{" "}
-										{Math.ceil(
-											validatorsData.pagination.total / limit
-										)}
+										Page {page + 1} of {totalPages}
 									</span>
 									<Button
 										variant="outline"
 										size="sm"
-										disabled={!validatorsData.pagination.has_next}
+										disabled={page >= totalPages - 1}
 										onClick={() => setPage((p) => p + 1)}
 									>
 										Next
@@ -417,16 +461,6 @@ const styles = {
 		outline: "none",
 		_focus: { borderColor: "accent.default" },
 		_placeholder: { color: "fg.muted" },
-	},
-	filterSelect: {
-		fontSize: "sm",
-		bg: "bg.muted",
-		border: "1px solid",
-		borderColor: "border.default",
-		rounded: "md",
-		px: "3",
-		py: "1.5",
-		color: "fg.default",
 	},
 	loadingContainer: {
 		display: "flex",
