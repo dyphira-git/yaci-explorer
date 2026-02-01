@@ -107,12 +107,16 @@ async function getNetworkMetrics(): Promise<NetworkMetrics> {
   })
 
   const latestBlock = blocks[0]
-  // Try multiple paths for validator count
-  const validators =
-    latestBlock?.data?.block?.last_commit?.signatures?.length ||
-    latestBlock?.data?.block?.lastCommit?.signatures?.length ||
-    latestBlock?.data?.lastCommit?.signatures?.length ||
-    0
+  // Count validators who actually signed the block (COMMIT signatures only)
+  // Excludes ABSENT and NIL signatures which indicate offline/jailed validators
+  const signatures =
+    latestBlock?.data?.block?.last_commit?.signatures ||
+    latestBlock?.data?.block?.lastCommit?.signatures ||
+    latestBlock?.data?.lastCommit?.signatures ||
+    []
+  const validators = Array.isArray(signatures)
+    ? signatures.filter((sig: any) => sig?.block_id_flag === 'BLOCK_ID_FLAG_COMMIT').length
+    : 0
 
   return {
     latestHeight: latestBlock?.id || 0,
