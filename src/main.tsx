@@ -18,6 +18,7 @@ import TransactionsPage from "./routes/transactions"
 import TransactionDetailPage from "./routes/transactions.$hash"
 import ValidatorsPage from "./routes/validators"
 import ValidatorDetailPage from "./routes/validators.$address"
+import DelegationsPage from "./routes/delegations"
 
 const router = createBrowserRouter([
 	{
@@ -49,6 +50,7 @@ const router = createBrowserRouter([
 					{ path: ":address", element: <ValidatorDetailPage /> }
 				]
 			},
+			{ path: "delegations", element: <DelegationsPage /> },
 			{
 				path: "compute",
 				children: [

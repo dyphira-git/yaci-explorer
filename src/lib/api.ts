@@ -249,6 +249,7 @@ export interface DelegationEvent {
 	event_type: 'DELEGATE' | 'UNDELEGATE' | 'REDELEGATE' | 'CREATE_VALIDATOR' | 'EDIT_VALIDATOR'
 	delegator_address: string | null
 	validator_address: string
+	validator_moniker?: string | null
 	src_validator_address: string | null
 	amount: string | null
 	denom: string | null
@@ -822,6 +823,67 @@ export class YaciClient {
 			order: 'updated_at.desc',
 			limit: String(limit),
 			offset: String(offset)
+		})
+	}
+
+	// Delegator endpoints
+
+	async getDelegatorHistory(
+		delegatorAddress: string,
+		limit = 50,
+		offset = 0,
+		eventType?: string
+	): Promise<PaginatedResponse<DelegationEvent>> {
+		return this.rpc('get_delegator_history', {
+			_delegator_address: delegatorAddress,
+			_limit: limit,
+			_offset: offset,
+			_event_type: eventType
+		})
+	}
+
+	async getDelegatorDelegations(delegatorAddress: string): Promise<{
+		delegations: Array<{
+			validator_address: string
+			validator_moniker: string | null
+			commission_rate: string | null
+			validator_status: string | null
+			validator_jailed: boolean | null
+			denom: string
+			total_delegated: string
+		}>
+		total_staked: string
+		validator_count: number
+	}> {
+		return this.rpc('get_delegator_delegations', {
+			_delegator_address: delegatorAddress
+		})
+	}
+
+	async getDelegatorStats(delegatorAddress: string): Promise<{
+		total_delegations: number
+		total_undelegations: number
+		total_redelegations: number
+		first_delegation: string | null
+		last_activity: string | null
+		unique_validators: number
+	}> {
+		return this.rpc('get_delegator_stats', {
+			_delegator_address: delegatorAddress
+		})
+	}
+
+	async getDelegatorValidatorHistory(
+		delegatorAddress: string,
+		validatorAddress: string,
+		limit = 50,
+		offset = 0
+	): Promise<PaginatedResponse<DelegationEvent>> {
+		return this.rpc('get_delegator_validator_history', {
+			_delegator_address: delegatorAddress,
+			_validator_address: validatorAddress,
+			_limit: limit,
+			_offset: offset
 		})
 	}
 

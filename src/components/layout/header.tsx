@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router'
 import { SearchBar } from '@/components/common/search-bar'
+import { WalletButton } from '@/components/wallet/WalletButton'
 import { getBrandingConfig } from '@/config/branding'
 import { css, cx } from '@/styled-system/css'
 import { RepublicLogo } from '@/components/icons/icons'
@@ -9,6 +10,7 @@ const navigation = [
   { name: 'Blocks', href: '/blocks' },
   { name: 'Transactions', href: '/tx' },
   { name: 'Validators', href: '/validators' },
+  { name: 'My Staking', href: '/delegations' },
   { name: 'Compute', href: '/compute' },
   { name: 'EVM', href: '/evm/contracts' },
   { name: 'Analytics', href: '/analytics' },
@@ -53,6 +55,7 @@ export function Header() {
 
           <div className={styles.right}>
             <SearchBar />
+            <WalletButton />
           </div>
         </div>
       </div>

@@ -1,8 +1,10 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "react-router"
-import { ArrowLeft, Shield, AlertTriangle, CheckCircle } from "lucide-react"
+import { ArrowLeft, Shield, AlertTriangle, CheckCircle, Coins } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { DelegateModal, UndelegateModal } from "@/components/staking"
+import { useWallet } from "@/contexts/WalletContext"
 import {
 	Table,
 	TableBody,
@@ -77,7 +79,10 @@ export default function ValidatorDetailPage() {
 	const address = params.address || ""
 	const [eventPage, setEventPage] = useState(0)
 	const [eventTypeFilter, setEventTypeFilter] = useState<string | undefined>()
+	const [showDelegateModal, setShowDelegateModal] = useState(false)
+	const [showUndelegateModal, setShowUndelegateModal] = useState(false)
 	const eventLimit = 20
+	const { isConnected } = useWallet()
 
 	// Load chain info for proper denom display
 	const { data: chainInfo } = useQuery({
@@ -360,6 +365,38 @@ export default function ValidatorDetailPage() {
 
 				{/* Sidebar */}
 				<div className={css(styles.sidebar)}>
+					{/* Staking Actions */}
+					<Card>
+						<CardHeader>
+							<CardTitle className={css(styles.stakingTitle)}>
+								<Coins className={css(styles.stakingIcon)} />
+								Stake with this Validator
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className={css(styles.stakingActions)}>
+								<Button
+									onClick={() => setShowDelegateModal(true)}
+									className={css(styles.stakingButton)}
+								>
+									Delegate
+								</Button>
+								<Button
+									variant="outline"
+									onClick={() => setShowUndelegateModal(true)}
+									className={css(styles.stakingButton)}
+								>
+									Undelegate
+								</Button>
+							</div>
+							{!isConnected && (
+								<p className={css(styles.connectHint)}>
+									Connect your wallet to stake
+								</p>
+							)}
+						</CardContent>
+					</Card>
+
 					{/* Delegation Stats */}
 					<Card>
 						<CardHeader>
@@ -547,6 +584,20 @@ export default function ValidatorDetailPage() {
 					</Card>
 				</div>
 			</div>
+
+			{/* Staking Modals */}
+			<DelegateModal
+				open={showDelegateModal}
+				onOpenChange={setShowDelegateModal}
+				validatorAddress={address}
+				validatorMoniker={validator?.moniker || undefined}
+			/>
+			<UndelegateModal
+				open={showUndelegateModal}
+				onOpenChange={setShowUndelegateModal}
+				validatorAddress={address}
+				validatorMoniker={validator?.moniker || undefined}
+			/>
 		</div>
 	)
 }
@@ -785,5 +836,29 @@ const styles = {
 		fontSize: "xs",
 		color: "fg.muted",
 		marginTop: "1",
+	},
+	stakingTitle: {
+		display: "flex",
+		alignItems: "center",
+		gap: "2",
+	},
+	stakingIcon: {
+		h: "4",
+		w: "4",
+		color: "accent.default",
+	},
+	stakingActions: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "2",
+	},
+	stakingButton: {
+		w: "full",
+	},
+	connectHint: {
+		fontSize: "xs",
+		color: "fg.muted",
+		textAlign: "center",
+		mt: "2",
 	},
 }
