@@ -4,8 +4,7 @@ import ReactDOM from "react-dom/client"
 import { createBrowserRouter, RouterProvider } from "react-router"
 import { loggingMiddleware } from "./lib/middleware/logging"
 import { loadConfig } from "./lib/env"
-import { AppKitProvider } from "./contexts/AppKitContext"
-import { WalletProvider } from "./contexts/WalletContext"
+import { SafeWalletProvider } from "./contexts/SafeWalletProvider"
 import Root from "./root"
 import AddressPage from "./routes/addr.$id"
 import AnalyticsPage from "./routes/analytics"
@@ -81,11 +80,9 @@ async function bootstrap() {
 
 	ReactDOM.createRoot(rootElement).render(
 		<React.StrictMode>
-			<AppKitProvider>
-				<WalletProvider>
-					<RouterProvider router={router} />
-				</WalletProvider>
-			</AppKitProvider>
+			<SafeWalletProvider>
+				<RouterProvider router={router} />
+			</SafeWalletProvider>
 		</React.StrictMode>
 	)
 }

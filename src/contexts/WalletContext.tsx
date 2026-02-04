@@ -195,10 +195,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 	)
 }
 
+// Default/fallback wallet context when provider is not available
+const defaultWalletContext: WalletContextValue = {
+	isConnected: false,
+	isConnecting: false,
+	walletType: null,
+	evmAddress: null,
+	cosmosAddress: null,
+	error: null,
+	connectKeplr: async () => { console.warn('Wallet provider not available') },
+	connectEvm: () => { console.warn('Wallet provider not available') },
+	disconnect: () => {},
+	getDisplayAddress: () => null,
+}
+
 export function useWallet() {
 	const context = useContext(WalletContext)
-	if (!context) {
-		throw new Error('useWallet must be used within a WalletProvider')
-	}
-	return context
+	// Return default context if provider is not available (wallet feature disabled)
+	return context ?? defaultWalletContext
 }

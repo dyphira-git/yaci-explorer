@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router'
 import { SearchBar } from '@/components/common/search-bar'
 import { WalletButton } from '@/components/wallet/WalletButton'
+import { WalletErrorBoundary } from '@/components/wallet/WalletErrorBoundary'
 import { getBrandingConfig } from '@/config/branding'
 import { css, cx } from '@/styled-system/css'
 import { RepublicLogo } from '@/components/icons/icons'
@@ -55,7 +56,9 @@ export function Header() {
 
           <div className={styles.right}>
             <SearchBar />
-            <WalletButton />
+            <WalletErrorBoundary>
+              <WalletButton />
+            </WalletErrorBoundary>
           </div>
         </div>
       </div>
