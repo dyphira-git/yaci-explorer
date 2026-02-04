@@ -99,6 +99,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '4',
+    ml: '8',
+    flexShrink: 0,
   }),
   brand: css({
     display: 'flex',

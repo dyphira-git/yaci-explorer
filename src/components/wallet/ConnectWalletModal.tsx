@@ -106,6 +106,8 @@ const styles = {
 		justifyContent: 'center',
 		zIndex: 100,
 		backdropFilter: 'blur(4px)',
+		p: '4',
+		overflow: 'auto',
 	}),
 	modal: css({
 		bg: 'bg.default',
@@ -114,8 +116,9 @@ const styles = {
 		borderColor: 'border.default',
 		w: 'full',
 		maxW: '400px',
-		mx: '4',
-		overflow: 'hidden',
+		maxH: '90vh',
+		overflow: 'auto',
+		my: 'auto',
 	}),
 	header: css({
 		display: 'flex',
