@@ -49,10 +49,11 @@ function getKeplr() {
 
 /**
  * Get account info from chain for signing
+ * Uses middleware proxy to avoid CORS issues
  */
 async function getAccountInfo(address: string): Promise<{ accountNumber: number; sequence: number }> {
 	const response = await fetch(
-		`${REPUBLIC_CHAIN_CONFIG.endpoints.cosmosRest}/cosmos/auth/v1beta1/accounts/${address}`
+		`${REPUBLIC_CHAIN_CONFIG.endpoints.middleware}/cosmos/auth/v1beta1/accounts/${address}`
 	)
 
 	if (!response.ok) {
@@ -197,8 +198,8 @@ async function signAndBroadcast(
 		signatures: [signResponse.signature.signature],
 	}
 
-	// Broadcast using the REST endpoint
-	const response = await fetch(`${REPUBLIC_CHAIN_CONFIG.endpoints.cosmosRest}/cosmos/tx/v1beta1/txs`, {
+	// Broadcast using the middleware proxy (has CORS enabled)
+	const response = await fetch(`${REPUBLIC_CHAIN_CONFIG.endpoints.middleware}/cosmos/tx/v1beta1/txs`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
