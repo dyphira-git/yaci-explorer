@@ -17,6 +17,8 @@ import TransactionDetailPage from "./routes/transactions.$hash"
 import GovernancePage from "./routes/governance"
 import GovernanceDetailPage from "./routes/governance.$id"
 import IbcPage from "./routes/ibc"
+import ValidatorsPage from "./routes/validators"
+import ValidatorDetailPage from "./routes/validators.$address"
 
 const router = createBrowserRouter([
 	{
@@ -55,7 +57,14 @@ const router = createBrowserRouter([
 					{ path: ":id", element: <GovernanceDetailPage /> }
 				]
 			},
-			{ path: "ibc", element: <IbcPage /> }
+			{ path: "ibc", element: <IbcPage /> },
+			{
+				path: "validators",
+				children: [
+					{ index: true, element: <ValidatorsPage /> },
+					{ path: ":address", element: <ValidatorDetailPage /> }
+				]
+			}
 		]
 	}
 ])

@@ -23,8 +23,8 @@ export interface Transaction {
 	fee: TransactionFee | null
 	memo: string | null
 	error: string | null
-	height: number | null  // null for ingest error transactions
-	timestamp: string | null  // null for ingest error transactions
+	height: number | null // null for ingest error transactions
+	timestamp: string | null // null for ingest error transactions
 	messages: Message[]
 	events: Event[]
 	ingest_error: IngestError | null
@@ -78,7 +78,6 @@ export interface Event {
 	msg_index: number | null
 }
 
-
 export interface EvmData {
 	// Standard EVM field names
 	hash: string
@@ -115,8 +114,14 @@ export interface ChainStats {
 }
 
 export interface SearchResult {
-	type: 'block' | 'transaction' | 'evm_transaction' | 'address' | 'evm_address'
-	value: { id?: string | number; height?: number; hash?: string; address?: string; tx_id?: string }
+	type: "block" | "transaction" | "evm_transaction" | "address" | "evm_address"
+	value: {
+		id?: string | number
+		height?: number
+		hash?: string
+		address?: string
+		tx_id?: string
+	}
 	score: number
 }
 
@@ -243,6 +248,50 @@ export interface ProposalSnapshot {
 	snapshot_time: string
 }
 
+export interface Validator {
+	operator_address: string
+	consensus_address?: string
+	consensus_pubkey: string | null
+	moniker: string | null
+	identity: string | null
+	website: string | null
+	details: string | null
+	commission_rate: string | null
+	tokens: string | null
+	delegator_shares: string | null
+	jailed: boolean
+	status: string | null
+	updated_at: string
+}
+
+export interface JailingEvent {
+	height: number
+	event_type: string
+	validator_address: string
+	operator_address: string | null
+	moniker: string | null
+	reason: string
+	power: string
+	created_at: string
+}
+
+export interface ValidatorJailingEvent {
+	height: number
+	event_type: string
+	reason: string
+	power: string
+	detected_at: string
+}
+
+export interface FinalizeBlockEvent {
+	id: number
+	height: number
+	event_index: number
+	event_type: string
+	attributes: Record<string, string>
+	created_at: string
+}
+
 // Legacy type aliases for compatibility
 export type EnhancedTransaction = Transaction
 
@@ -258,14 +307,17 @@ export class YaciClient {
 	private retryDelay = 500
 
 	constructor(config: YaciClientConfig) {
-		this.baseUrl = config.baseUrl.replace(/\/$/, '')
+		this.baseUrl = config.baseUrl.replace(/\/$/, "")
 	}
 
 	getBaseUrl(): string {
 		return this.baseUrl
 	}
 
-	private async fetchWithRetry(url: string, init?: RequestInit): Promise<Response> {
+	private async fetchWithRetry(
+		url: string,
+		init?: RequestInit
+	): Promise<Response> {
 		let lastError: Error | null = null
 		for (let attempt = 0; attempt < this.maxRetries; attempt++) {
 			const res = await fetch(url, init)
@@ -277,15 +329,23 @@ export class YaciClient {
 			}
 			lastError = new Error(`Request failed: ${res.status} ${res.statusText}`)
 			if (attempt < this.maxRetries - 1) {
-				await new Promise(r => setTimeout(r, this.retryDelay * (attempt + 1)))
+				await new Promise((r) => setTimeout(r, this.retryDelay * (attempt + 1)))
 			}
 		}
-		throw lastError || new Error('Request failed after retries')
+		throw lastError || new Error("Request failed after retries")
 	}
 
-	private async rpc<T>(fn: string, params?: Record<string, unknown>): Promise<T> {
+	private async rpc<T>(
+		fn: string,
+		params?: Record<string, unknown>
+	): Promise<T> {
 		const urlStr = `${this.baseUrl}/rpc/${fn}`
-		const url = new URL(urlStr, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+		const url = new URL(
+			urlStr,
+			typeof window !== "undefined"
+				? window.location.origin
+				: "http://localhost"
+		)
 		if (params) {
 			Object.entries(params).forEach(([key, value]) => {
 				if (value !== undefined && value !== null) {
@@ -295,20 +355,28 @@ export class YaciClient {
 		}
 
 		const res = await this.fetchWithRetry(url.toString(), {
-			headers: { 'Accept': 'application/json' }
+			headers: { Accept: "application/json" }
 		})
 
 		return res.json()
 	}
 
-	async query<T>(table: string, params?: Record<string, string | number | Record<string, string>>): Promise<T> {
+	async query<T>(
+		table: string,
+		params?: Record<string, string | number | Record<string, string>>
+	): Promise<T> {
 		const urlStr = `${this.baseUrl}/${table}`
-		const url = new URL(urlStr, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+		const url = new URL(
+			urlStr,
+			typeof window !== "undefined"
+				? window.location.origin
+				: "http://localhost"
+		)
 		if (params) {
 			Object.entries(params).forEach(([key, value]) => {
-				if (typeof value === 'string' || typeof value === 'number') {
+				if (typeof value === "string" || typeof value === "number") {
 					url.searchParams.set(key, String(value))
-				} else if (value && typeof value === 'object') {
+				} else if (value && typeof value === "object") {
 					Object.entries(value).forEach(([k, v]) => {
 						url.searchParams.set(k, v)
 					})
@@ -317,7 +385,7 @@ export class YaciClient {
 		}
 
 		const res = await this.fetchWithRetry(url.toString(), {
-			headers: { 'Accept': 'application/json' }
+			headers: { Accept: "application/json" }
 		})
 
 		return res.json()
@@ -330,7 +398,7 @@ export class YaciClient {
 		limit = 50,
 		offset = 0
 	): Promise<PaginatedResponse<Transaction>> {
-		return this.rpc('get_transactions_by_address', {
+		return this.rpc("get_transactions_by_address", {
 			_address: address,
 			_limit: limit,
 			_offset: offset
@@ -338,20 +406,20 @@ export class YaciClient {
 	}
 
 	async getAddressStats(address: string): Promise<AddressStats> {
-		return this.rpc('get_address_stats', { _address: address })
+		return this.rpc("get_address_stats", { _address: address })
 	}
 
 	// Transaction endpoints
 
 	async getTransaction(hash: string): Promise<TransactionDetail> {
-		return this.rpc('get_transaction_detail', { _hash: hash.toLowerCase() })
+		return this.rpc("get_transaction_detail", { _hash: hash.toLowerCase() })
 	}
 
 	async getTransactions(
 		limit = 20,
 		offset = 0,
 		filters?: {
-			status?: 'success' | 'failed'
+			status?: "success" | "failed"
 			block_height?: number
 			block_height_min?: number
 			block_height_max?: number
@@ -360,7 +428,7 @@ export class YaciClient {
 			timestamp_max?: string
 		}
 	): Promise<PaginatedResponse<Transaction>> {
-		return this.rpc('get_transactions_paginated', {
+		return this.rpc("get_transactions_paginated", {
 			_limit: limit,
 			_offset: offset,
 			_status: filters?.status,
@@ -376,16 +444,19 @@ export class YaciClient {
 	// Block endpoints
 
 	async getBlock(height: number): Promise<BlockRaw | undefined> {
-		const result = await this.query<BlockRaw[]>('blocks_raw', {
+		const result = await this.query<BlockRaw[]>("blocks_raw", {
 			id: `eq.${height}`,
-			limit: '1'
+			limit: "1"
 		})
 		return result[0]
 	}
 
-	async getBlocks(limit = 20, offset = 0): Promise<PaginatedResponse<BlockRaw>> {
-		const blocks = await this.query<BlockRaw[]>('blocks_raw', {
-			order: 'id.desc',
+	async getBlocks(
+		limit = 20,
+		offset = 0
+	): Promise<PaginatedResponse<BlockRaw>> {
+		const blocks = await this.query<BlockRaw[]>("blocks_raw", {
+			order: "id.desc",
 			limit: String(limit),
 			offset: String(offset)
 		})
@@ -413,7 +484,7 @@ export class YaciClient {
 			toDate?: string
 		}
 	): Promise<PaginatedResponse<BlockRaw & { tx_count: number }>> {
-		return this.rpc('get_blocks_paginated', {
+		return this.rpc("get_blocks_paginated", {
 			_limit: limit,
 			_offset: offset,
 			_min_tx_count: filters?.minTxCount,
@@ -423,9 +494,9 @@ export class YaciClient {
 	}
 
 	async getLatestBlock(): Promise<BlockRaw | undefined> {
-		const result = await this.query<BlockRaw[]>('blocks_raw', {
-			order: 'id.desc',
-			limit: '1'
+		const result = await this.query<BlockRaw[]>("blocks_raw", {
+			order: "id.desc",
+			limit: "1"
 		})
 		return result[0]
 	}
@@ -433,32 +504,36 @@ export class YaciClient {
 	// Search endpoint
 
 	async search(query: string): Promise<SearchResult[]> {
-		return this.rpc('universal_search', { _query: query })
+		return this.rpc("universal_search", { _query: query })
 	}
 
 	// Analytics endpoints
 
 	async getChainStats(): Promise<ChainStats> {
-		const result = await this.query<ChainStats[]>('chain_stats')
+		const result = await this.query<ChainStats[]>("chain_stats")
 		return result[0]
 	}
 
 	async getTxVolumeDaily(): Promise<Array<{ date: string; count: number }>> {
-		return this.query('tx_volume_daily', { order: 'date.desc' })
+		return this.query("tx_volume_daily", { order: "date.desc" })
 	}
 
-	async getHourlyTransactionVolume(limit?: number): Promise<Array<{ hour: string; count: number }>> {
-		const params: Record<string, string> = { order: 'hour.desc' }
+	async getHourlyTransactionVolume(
+		limit?: number
+	): Promise<Array<{ hour: string; count: number }>> {
+		const params: Record<string, string> = { order: "hour.desc" }
 		if (limit) params.limit = String(limit)
-		return this.query('tx_volume_hourly', params)
+		return this.query("tx_volume_hourly", params)
 	}
 
 	async getMessageTypeStats(): Promise<Array<{ type: string; count: number }>> {
-		return this.query('message_type_stats')
+		return this.query("message_type_stats")
 	}
 
-	async getGasUsageDistribution(): Promise<Array<{ gas_range: string; count: number }>> {
-		return this.query('gas_usage_distribution')
+	async getGasUsageDistribution(): Promise<
+		Array<{ gas_range: string; count: number }>
+	> {
+		return this.query("gas_usage_distribution")
 	}
 
 	async getGasEfficiency(): Promise<{
@@ -467,22 +542,25 @@ export class YaciClient {
 		transactionCount: number
 		data: Array<{ gas_range: string; count: number }>
 	}> {
-		const data = await this.query<Array<{ gas_range: string; count: number }>>('gas_usage_distribution')
+		const data = await this.query<Array<{ gas_range: string; count: number }>>(
+			"gas_usage_distribution"
+		)
 		const transactionCount = data.reduce((sum, d) => sum + d.count, 0)
 		// Estimate average based on distribution midpoints
 		const midpoints: Record<string, number> = {
-			'0-100k': 50000,
-			'100k-250k': 175000,
-			'250k-500k': 375000,
-			'500k-1M': 750000,
-			'1M+': 1500000
+			"0-100k": 50000,
+			"100k-250k": 175000,
+			"250k-500k": 375000,
+			"500k-1M": 750000,
+			"1M+": 1500000
 		}
 		let totalGasLimit = 0
 		for (const d of data) {
 			totalGasLimit += (midpoints[d.gas_range] || 500000) * d.count
 		}
 		return {
-			avgGasLimit: transactionCount > 0 ? Math.round(totalGasLimit / transactionCount) : 0,
+			avgGasLimit:
+				transactionCount > 0 ? Math.round(totalGasLimit / transactionCount) : 0,
 			totalGasLimit,
 			transactionCount,
 			data
@@ -495,21 +573,28 @@ export class YaciClient {
 		failed: number
 		success_rate_percent: number
 	}> {
-		const result = await this.query<Array<{
-			total: number
-			successful: number
-			failed: number
-			success_rate_percent: number
-		}>>('tx_success_rate')
+		const result =
+			await this.query<
+				Array<{
+					total: number
+					successful: number
+					failed: number
+					success_rate_percent: number
+				}>
+			>("tx_success_rate")
 		return result[0]
 	}
 
-	async getFeeRevenue(): Promise<Array<{ denom: string; total_amount: string }>> {
-		return this.query('fee_revenue')
+	async getFeeRevenue(): Promise<
+		Array<{ denom: string; total_amount: string }>
+	> {
+		return this.query("fee_revenue")
 	}
 
 	// Alias for backward compatibility
-	async getFeeRevenueOverTime(): Promise<Array<{ denom: string; total_amount: string }>> {
+	async getFeeRevenueOverTime(): Promise<
+		Array<{ denom: string; total_amount: string }>
+	> {
 		return this.getFeeRevenue()
 	}
 
@@ -523,80 +608,100 @@ export class YaciClient {
 	}
 
 	async getDistinctMessageTypes(): Promise<string[]> {
-		const result = await this.query<Array<{ type: string }>>('message_type_stats', {
-			select: 'type',
-			order: 'count.desc'
-		})
-		return result.map(r => r.type)
+		const result = await this.query<Array<{ type: string }>>(
+			"message_type_stats",
+			{
+				select: "type",
+				order: "count.desc"
+			}
+		)
+		return result.map((r) => r.type)
 	}
 
-	async getBlockTimeAnalysis(limit = 100): Promise<{ avg: number; min: number; max: number }> {
-		return this.rpc('get_block_time_analysis', { _limit: limit })
+	async getBlockTimeAnalysis(
+		limit = 100
+	): Promise<{ avg: number; min: number; max: number }> {
+		return this.rpc("get_block_time_analysis", { _limit: limit })
 	}
 
 	// Denomination endpoints
 
-	async getDenomMetadata(denom?: string): Promise<Array<{
-		denom: string
-		symbol: string
-		name: string | null
-		decimals: number
-		description: string | null
-		logo_uri: string | null
-		coingecko_id: string | null
-		is_native: boolean
-		ibc_source_chain: string | null
-		ibc_source_denom: string | null
-		evm_contract: string | null
-		updated_at: string
-	}>> {
+	async getDenomMetadata(denom?: string): Promise<
+		Array<{
+			denom: string
+			symbol: string
+			name: string | null
+			decimals: number
+			description: string | null
+			logo_uri: string | null
+			coingecko_id: string | null
+			is_native: boolean
+			ibc_source_chain: string | null
+			ibc_source_denom: string | null
+			evm_contract: string | null
+			updated_at: string
+		}>
+	> {
 		const params: Record<string, string> = {}
 		if (denom) params.denom = `eq.${denom}`
-		return this.query('denom_metadata', params)
+		return this.query("denom_metadata", params)
 	}
 
 	// EVM endpoints
 
 	async requestEvmDecode(txHash: string): Promise<{ success: boolean }> {
-		return this.rpc('request_evm_decode', { _tx_hash: txHash })
+		return this.rpc("request_evm_decode", { _tx_hash: txHash })
 	}
 
-	async getEvmContracts(limit = 50, offset = 0): Promise<Array<{
-		address: string
-		creator: string | null
-		creation_tx: string | null
-		bytecode_hash: string | null
-		name: string | null
-		verified: boolean
-		creation_height: number
-	}>> {
-		return this.query('evm_contracts', {
-			order: 'creation_height.desc',
+	async getEvmContracts(
+		limit = 50,
+		offset = 0
+	): Promise<
+		Array<{
+			address: string
+			creator: string | null
+			creation_tx: string | null
+			bytecode_hash: string | null
+			name: string | null
+			verified: boolean
+			creation_height: number
+		}>
+	> {
+		return this.query("evm_contracts", {
+			order: "creation_height.desc",
 			limit: String(limit),
 			offset: String(offset)
 		})
 	}
 
 	async isEvmContract(address: string): Promise<boolean> {
-		const result = await this.query<Array<{ address: string }>>('evm_contracts', {
-			address: `eq.${address.toLowerCase()}`,
-			limit: '1',
-			select: 'address'
-		})
+		const result = await this.query<Array<{ address: string }>>(
+			"evm_contracts",
+			{
+				address: `eq.${address.toLowerCase()}`,
+				limit: "1",
+				select: "address"
+			}
+		)
 		return result.length > 0
 	}
 
-	async getEvmTokens(limit = 50, offset = 0): Promise<Array<{
-		address: string
-		name: string | null
-		symbol: string | null
-		decimals: number | null
-		total_supply: string | null
-		type: string | null
-		first_seen_height: number | null
-	}>> {
-		return this.query('evm_tokens', {
-			order: 'first_seen_height.desc.nullslast,address.asc',
+	async getEvmTokens(
+		limit = 50,
+		offset = 0
+	): Promise<
+		Array<{
+			address: string
+			name: string | null
+			symbol: string | null
+			decimals: number | null
+			total_supply: string | null
+			type: string | null
+			first_seen_height: number | null
+		}>
+	> {
+		return this.query("evm_tokens", {
+			order: "first_seen_height.desc.nullslast,address.asc",
 			limit: String(limit),
 			offset: String(offset)
 		})
@@ -605,71 +710,118 @@ export class YaciClient {
 	async getEvmTokenTransfers(
 		limit = 50,
 		offset = 0,
-		filters?: { tokenAddress?: string; fromAddress?: string; toAddress?: string }
-	): Promise<Array<{
-		tx_id: string
-		log_index: number
-		token_address: string
-		from_address: string
-		to_address: string
-		value: string
-	}>> {
+		filters?: {
+			tokenAddress?: string
+			fromAddress?: string
+			toAddress?: string
+		}
+	): Promise<
+		Array<{
+			tx_id: string
+			log_index: number
+			token_address: string
+			from_address: string
+			to_address: string
+			value: string
+		}>
+	> {
 		const params: Record<string, string> = {
-			order: 'tx_id.desc',
+			order: "tx_id.desc",
 			limit: String(limit),
 			offset: String(offset)
 		}
-		if (filters?.tokenAddress) params.token_address = `eq.${filters.tokenAddress}`
+		if (filters?.tokenAddress)
+			params.token_address = `eq.${filters.tokenAddress}`
 		if (filters?.fromAddress) params.from_address = `eq.${filters.fromAddress}`
 		if (filters?.toAddress) params.to_address = `eq.${filters.toAddress}`
-		return this.query('evm_token_transfers', params)
+		return this.query("evm_token_transfers", params)
 	}
 
 	// Validator endpoints
 
-	async getValidators(limit = 100, offset = 0): Promise<Array<{
-		operator_address: string
-		consensus_pubkey: string | null
-		moniker: string | null
-		identity: string | null
-		website: string | null
-		details: string | null
-		commission_rate: string | null
-		tokens: string | null
-		delegator_shares: string | null
-		jailed: boolean
-		status: string | null
-		updated_at: string
-	}>> {
-		return this.query('validators', {
-			order: 'tokens.desc.nullslast',
+	async getValidators(limit = 100, offset = 0): Promise<Validator[]> {
+		return this.query("validators", {
+			order: "tokens.desc.nullslast",
 			limit: String(limit),
 			offset: String(offset)
 		})
 	}
 
+	async getValidator(operatorAddress: string): Promise<Validator | null> {
+		const result = await this.query<Validator[]>("validators", {
+			operator_address: `eq.${operatorAddress}`,
+			limit: "1"
+		})
+		return result[0] || null
+	}
+
+	async getValidatorJailingEvents(
+		operatorAddress: string,
+		limit = 50,
+		offset = 0
+	): Promise<ValidatorJailingEvent[]> {
+		return this.rpc("get_validator_jailing_events", {
+			_operator_address: operatorAddress,
+			_limit: limit,
+			_offset: offset
+		})
+	}
+
+	async getRecentValidatorEvents(
+		eventTypes: string[] = ["slash", "liveness", "jail"],
+		limit = 50,
+		offset = 0
+	): Promise<JailingEvent[]> {
+		return this.rpc("get_recent_validator_events", {
+			_event_types: `{${eventTypes.join(",")}}`,
+			_limit: limit,
+			_offset: offset
+		})
+	}
+
+	async getFinalizeBlockEvents(
+		limit = 50,
+		offset = 0,
+		eventType?: string
+	): Promise<FinalizeBlockEvent[]> {
+		const params: Record<string, string> = {
+			order: "height.desc,event_index.asc",
+			limit: String(limit),
+			offset: String(offset)
+		}
+		if (eventType) {
+			params.event_type = `eq.${eventType}`
+		}
+		return this.query("finalize_block_events", params)
+	}
+
 	// IBC endpoints
 
-	async getIbcChannels(limit = 50, offset = 0): Promise<Array<{
-		channel_id: string
-		port_id: string
-		counterparty_channel_id: string | null
-		counterparty_port_id: string | null
-		connection_id: string | null
-		state: string | null
-		ordering: string | null
-		version: string | null
-		updated_at: string
-	}>> {
-		return this.query('ibc_channels', {
-			order: 'channel_id.asc',
+	async getIbcChannels(
+		limit = 50,
+		offset = 0
+	): Promise<
+		Array<{
+			channel_id: string
+			port_id: string
+			counterparty_channel_id: string | null
+			counterparty_port_id: string | null
+			connection_id: string | null
+			state: string | null
+			ordering: string | null
+			version: string | null
+			updated_at: string
+		}>
+	> {
+		return this.query("ibc_channels", {
+			order: "channel_id.asc",
 			limit: String(limit),
 			offset: String(offset)
 		})
 	}
 
 	async getChainParams(): Promise<Record<string, string>> {
-		return this.rpc('get_chain_params', {})
+		return this.rpc("get_chain_params", {})
 	}
 
 	async getIbcConnections(
@@ -678,7 +830,7 @@ export class YaciClient {
 		chainId?: string,
 		state?: string
 	): Promise<PaginatedResponse<IbcConnection>> {
-		return this.rpc('get_ibc_connections', {
+		return this.rpc("get_ibc_connections", {
 			_limit: limit,
 			_offset: offset,
 			_chain_id: chainId,
@@ -686,8 +838,11 @@ export class YaciClient {
 		})
 	}
 
-async getIbcConnection(channelId: string, portId = 'transfer'): Promise<IbcConnection | null> {
-		return this.rpc('get_ibc_connection', {
+	async getIbcConnection(
+		channelId: string,
+		portId = "transfer"
+	): Promise<IbcConnection | null> {
+		return this.rpc("get_ibc_connection", {
 			_channel_id: channelId,
 			_port_id: portId
 		})
@@ -700,33 +855,37 @@ async getIbcConnection(channelId: string, portId = 'transfer'): Promise<IbcConne
 		offset = 0,
 		status?: string
 	): Promise<PaginatedResponse<GovernanceProposal>> {
-		return this.rpc('get_governance_proposals', {
+		return this.rpc("get_governance_proposals", {
 			_limit: limit,
 			_offset: offset,
 			_status: status
 		})
 	}
 
-	async getProposalDetail(proposalId: number): Promise<GovernanceProposal | undefined> {
-		const result = await this.query<Array<{
-			proposal_id: number
-			title: string | null
-			summary: string | null
-			status: string
-			submit_time: string
-			deposit_end_time: string | null
-			voting_start_time: string | null
-			voting_end_time: string | null
-			proposer: string | null
-			yes_count: string | null
-			no_count: string | null
-			abstain_count: string | null
-			no_with_veto_count: string | null
-			last_updated: string
-			last_snapshot_time: string | null
-		}>>('governance_proposals', {
+	async getProposalDetail(
+		proposalId: number
+	): Promise<GovernanceProposal | undefined> {
+		const result = await this.query<
+			Array<{
+				proposal_id: number
+				title: string | null
+				summary: string | null
+				status: string
+				submit_time: string
+				deposit_end_time: string | null
+				voting_start_time: string | null
+				voting_end_time: string | null
+				proposer: string | null
+				yes_count: string | null
+				no_count: string | null
+				abstain_count: string | null
+				no_with_veto_count: string | null
+				last_updated: string
+				last_snapshot_time: string | null
+			}>
+		>("governance_proposals", {
 			proposal_id: `eq.${proposalId}`,
-			limit: '1'
+			limit: "1"
 		})
 		if (!result[0]) return undefined
 		const row = result[0]
@@ -752,9 +911,9 @@ async getIbcConnection(channelId: string, portId = 'transfer'): Promise<IbcConne
 	}
 
 	async getProposalSnapshots(proposalId: number): Promise<ProposalSnapshot[]> {
-		return this.query('governance_snapshots', {
+		return this.query("governance_snapshots", {
 			proposal_id: `eq.${proposalId}`,
-			order: 'snapshot_time.desc'
+			order: "snapshot_time.desc"
 		})
 	}
 
@@ -763,42 +922,52 @@ async getIbcConnection(channelId: string, portId = 'transfer'): Promise<IbcConne
 		offset = 0,
 		baseDenom?: string
 	): Promise<PaginatedResponse<IbcDenomTrace>> {
-		return this.rpc('get_ibc_denom_traces', {
+		return this.rpc("get_ibc_denom_traces", {
 			_limit: limit,
 			_offset: offset,
 			_base_denom: baseDenom
 		})
 	}
 
-async resolveIbcDenom(ibcDenom: string): Promise<IbcDenomResolution | null> {
-		return this.rpc('resolve_ibc_denom', { _ibc_denom: ibcDenom })
+	async resolveIbcDenom(ibcDenom: string): Promise<IbcDenomResolution | null> {
+		return this.rpc("resolve_ibc_denom", { _ibc_denom: ibcDenom })
 	}
 
 	async getIbcChains(): Promise<IbcChainSummary[]> {
-		return this.rpc('get_ibc_chains', {})
+		return this.rpc("get_ibc_chains", {})
 	}
 
 	// Analytics - Daily Active Addresses
 
-	async getDailyActiveAddresses(limit = 30): Promise<Array<{ date: string; active_addresses: number }>> {
-		return this.query('daily_active_addresses', { order: 'date.desc', limit: String(limit) })
+	async getDailyActiveAddresses(
+		limit = 30
+	): Promise<Array<{ date: string; active_addresses: number }>> {
+		return this.query("daily_active_addresses", {
+			order: "date.desc",
+			limit: String(limit)
+		})
 	}
 
 	// IBC Activity Analytics
 
-	async getIbcChannelActivity(): Promise<Array<{
-		channel_id: string
-		counterparty_chain_id: string | null
-		total_transfers: number
-		outgoing_count: number
-		incoming_count: number
-		unique_denoms: number
-		last_transfer: string | null
-	}>> {
-		return this.rpc('get_ibc_channel_activity', {})
+	async getIbcChannelActivity(): Promise<
+		Array<{
+			channel_id: string
+			counterparty_chain_id: string | null
+			total_transfers: number
+			outgoing_count: number
+			incoming_count: number
+			unique_denoms: number
+			last_transfer: string | null
+		}>
+	> {
+		return this.rpc("get_ibc_channel_activity", {})
 	}
 
-	async getIbcVolumeTimeseries(hours = 24, channel?: string): Promise<{
+	async getIbcVolumeTimeseries(
+		hours = 24,
+		channel?: string
+	): Promise<{
 		timeseries: Array<{
 			hour: string
 			outgoing_count: number
@@ -813,12 +982,11 @@ async resolveIbcDenom(ibcDenom: string): Promise<IbcDenomResolution | null> {
 			peak_count: number
 		}
 	}> {
-		return this.rpc('get_ibc_volume_timeseries', {
+		return this.rpc("get_ibc_volume_timeseries", {
 			_hours: hours,
 			_channel: channel
 		})
 	}
-
 }
 
 // Factory function to create API client
@@ -826,7 +994,7 @@ export function createApiClient(baseUrl: string): YaciClient {
 	return new YaciClient({ baseUrl })
 }
 
-import { getConfig } from './env'
+import { getConfig } from "./env"
 
 // Lazy-initialized singleton - deferred until first access to ensure config is loaded
 let _apiInstance: YaciClient | null = null
@@ -860,7 +1028,9 @@ export interface BalancesResponse {
  * Fetch account balances via middleware's chain proxy endpoint
  * Uses the /chain/balances/{address} endpoint which proxies to chain gRPC
  */
-export async function getAccountBalances(address: string): Promise<TokenBalance[]> {
+export async function getAccountBalances(
+	address: string
+): Promise<TokenBalance[]> {
 	const config = getConfig()
 	const apiUrl = config.apiUrl
 
@@ -880,10 +1050,10 @@ export async function getAccountBalances(address: string): Promise<TokenBalance[
 		const data: BalancesResponse = await response.json()
 		return data.balances || []
 	} catch (error) {
-		if (error instanceof Error && error.name === 'AbortError') {
-			console.warn('Balance fetch timed out')
+		if (error instanceof Error && error.name === "AbortError") {
+			console.warn("Balance fetch timed out")
 		} else {
-			console.warn('Failed to fetch account balances:', error)
+			console.warn("Failed to fetch account balances:", error)
 		}
 		return []
 	}

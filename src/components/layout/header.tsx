@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Blocks, Home, Vote } from 'lucide-react'
+import { Activity, BarChart3, Blocks, Home, Shield, Vote } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { SearchBar } from '@/components/common/search-bar'
 import { getBrandingConfig } from '@/config/branding'
@@ -18,6 +18,7 @@ const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Blocks', href: '/blocks', icon: Blocks },
   { name: 'Transactions', href: '/tx', icon: Activity },
+  { name: 'Validators', href: '/validators', icon: Shield },
   { name: 'EVM', href: '/evm/contracts', icon: EthereumIcon, requiresFeature: 'evm' },
   { name: 'IBC', href: '/ibc', icon: IBCIcon, requiresFeature: 'ibc' },
   { name: 'Governance', href: '/governance', icon: Vote },
@@ -56,7 +57,8 @@ export function Header() {
                 const isActive = pathname === item.href ||
                   (item.href.startsWith('/evm') && pathname.startsWith('/evm')) ||
                   (item.href.startsWith('/governance') && pathname.startsWith('/governance')) ||
-                  (item.href.startsWith('/ibc') && pathname.startsWith('/ibc'))
+                  (item.href.startsWith('/ibc') && pathname.startsWith('/ibc')) ||
+                  (item.href.startsWith('/validators') && pathname.startsWith('/validators'))
                 return (
                   <Link
                     key={item.name}
