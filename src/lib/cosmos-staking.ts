@@ -49,11 +49,11 @@ function getKeplr() {
 
 /**
  * Get account info from chain for signing
- * Uses middleware proxy to avoid CORS issues
+ * Uses middleware gRPC proxy to avoid CORS issues
  */
 async function getAccountInfo(address: string): Promise<{ accountNumber: number; sequence: number }> {
 	const response = await fetch(
-		`${REPUBLIC_CHAIN_CONFIG.endpoints.middleware}/cosmos/auth/v1beta1/accounts/${address}`
+		`${REPUBLIC_CHAIN_CONFIG.endpoints.middleware}/chain/auth/account/${address}`
 	)
 
 	if (!response.ok) {
@@ -64,20 +64,19 @@ async function getAccountInfo(address: string): Promise<{ accountNumber: number;
 	}
 
 	const data = await response.json()
-	const account = data.account
 
-	// Handle EthAccount type (Republic uses eth_secp256k1)
-	if (account?.['@type']?.includes('EthAccount')) {
+	// Handle response from gRPC endpoint
+	if (data.account?.base_account) {
 		return {
-			accountNumber: parseInt(account.base_account?.account_number || '0', 10),
-			sequence: parseInt(account.base_account?.sequence || '0', 10),
+			accountNumber: parseInt(data.account.base_account.account_number || '0', 10),
+			sequence: parseInt(data.account.base_account.sequence || '0', 10),
 		}
 	}
 
-	// Handle BaseAccount
+	// Fallback for direct account_number/sequence fields
 	return {
-		accountNumber: parseInt(account?.account_number || '0', 10),
-		sequence: parseInt(account?.sequence || '0', 10),
+		accountNumber: parseInt(data.account_number || '0', 10),
+		sequence: parseInt(data.sequence || '0', 10),
 	}
 }
 
@@ -198,8 +197,8 @@ async function signAndBroadcast(
 		signatures: [signResponse.signature.signature],
 	}
 
-	// Broadcast using the middleware proxy (has CORS enabled)
-	const response = await fetch(`${REPUBLIC_CHAIN_CONFIG.endpoints.middleware}/cosmos/tx/v1beta1/txs`, {
+	// Broadcast using the middleware gRPC endpoint
+	const response = await fetch(`${REPUBLIC_CHAIN_CONFIG.endpoints.middleware}/chain/tx/broadcast`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({

@@ -29,8 +29,8 @@ export const REPUBLIC_CHAIN_CONFIG = {
 		cosmosRpc: 'https://rpc.republicai.io',
 		cosmosRest: 'https://rest.republicai.io',
 		cosmosGrpc: 'https://grpc.republicai.io',
-		// Middleware proxy for browser requests (has CORS enabled)
-		middleware: 'https://api.republicai.io',
+		// Middleware for browser requests (gRPC proxy with CORS)
+		middleware: 'https://yaci-explorer-apis.fly.dev',
 	},
 
 	// EVM Precompile addresses
