@@ -1,10 +1,10 @@
 /**
  * Wallet Context - Unified wallet state management for both Keplr (Cosmos) and EVM wallets
+ * Uses direct EIP-1193 provider access (window.ethereum) instead of wagmi to avoid Bun bundling issues
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { injected } from 'wagmi/connectors'
+import { createWalletClient, custom, type WalletClient } from 'viem'
 import { evmToCosmosAddress, cosmosToEvmAddress } from '@/lib/address'
 import { REPUBLIC_CHAIN_CONFIG } from '@/lib/chain-config'
 
@@ -28,11 +28,14 @@ interface WalletState {
 interface WalletContextValue extends WalletState {
 	// Connection methods
 	connectKeplr: () => Promise<void>
-	connectEvm: () => void
+	connectEvm: () => Promise<void>
 	disconnect: () => void
 
 	// Utility
 	getDisplayAddress: () => string | null
+
+	// Wallet client for transactions
+	walletClient: WalletClient | null
 }
 
 const WalletContext = createContext<WalletContextValue | null>(null)
@@ -53,36 +56,58 @@ declare global {
 				isNanoLedger: boolean
 			}>
 		}
+		ethereum?: {
+			isMetaMask?: boolean
+			request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+			on: (event: string, handler: (...args: unknown[]) => void) => void
+			removeListener: (event: string, handler: (...args: unknown[]) => void) => void
+		}
 	}
 }
 
+// Define Republic chain for viem
+const republicChain = {
+	id: REPUBLIC_CHAIN_CONFIG.chainId,
+	name: REPUBLIC_CHAIN_CONFIG.chainName,
+	nativeCurrency: REPUBLIC_CHAIN_CONFIG.nativeCurrency,
+	rpcUrls: {
+		default: {
+			http: [REPUBLIC_CHAIN_CONFIG.endpoints.evmRpc],
+		},
+	},
+	blockExplorers: {
+		default: {
+			name: 'Republic Explorer',
+			url: 'https://explorer.republicai.io',
+		},
+	},
+} as const
+
 export function WalletProvider({ children }: { children: ReactNode }) {
 	const [walletType, setWalletType] = useState<WalletType>(null)
+	const [evmAddress, setEvmAddress] = useState<string | null>(null)
 	const [keplrAddress, setKeplrAddress] = useState<string | null>(null)
 	const [isConnecting, setIsConnecting] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [walletClient, setWalletClient] = useState<WalletClient | null>(null)
 
-	// Wagmi hooks for EVM wallet
-	const { address: evmWagmiAddress, isConnected: isEvmConnected } = useAccount()
-	const { connect: wagmiConnect, isPending: isWagmiConnecting } = useConnect()
-	const { disconnect: disconnectWagmi } = useDisconnect()
+	// Derive cosmos address from EVM or use Keplr's directly
+	const cosmosAddress = walletType === 'keplr' && keplrAddress
+		? keplrAddress
+		: walletType === 'evm' && evmAddress
+			? evmToCosmosAddress(evmAddress)
+			: null
 
-	// Derive addresses based on wallet type
-	const evmAddress = walletType === 'evm' && evmWagmiAddress
-		? evmWagmiAddress
+	// Derive EVM address from Keplr's cosmos address or use direct EVM address
+	const derivedEvmAddress = walletType === 'evm' && evmAddress
+		? evmAddress
 		: walletType === 'keplr' && keplrAddress
 			? cosmosToEvmAddress(keplrAddress)
 			: null
 
-	const cosmosAddress = walletType === 'keplr' && keplrAddress
-		? keplrAddress
-		: walletType === 'evm' && evmWagmiAddress
-			? evmToCosmosAddress(evmWagmiAddress)
-			: null
-
 	const isConnected = walletType !== null && (
 		(walletType === 'keplr' && keplrAddress !== null) ||
-		(walletType === 'evm' && isEvmConnected)
+		(walletType === 'evm' && evmAddress !== null)
 	)
 
 	// Connect to Keplr
@@ -116,6 +141,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
 			setKeplrAddress(key.bech32Address)
 			setWalletType('keplr')
+			setEvmAddress(null)
+			setWalletClient(null)
 
 			// Store in localStorage for session persistence
 			localStorage.setItem('walletType', 'keplr')
@@ -128,38 +155,82 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 		}
 	}, [])
 
-	// Connect EVM wallet (uses injected provider like MetaMask)
-	const connectEvm = useCallback(() => {
-		setError(null)
+	// Connect EVM wallet using direct window.ethereum access
+	const connectEvm = useCallback(async () => {
 		setIsConnecting(true)
+		setError(null)
 
-		wagmiConnect(
-			{ connector: injected() },
-			{
-				onSuccess: () => {
-					setWalletType('evm')
-					localStorage.setItem('walletType', 'evm')
-					setIsConnecting(false)
-				},
-				onError: (err) => {
-					setError(err.message || 'Failed to connect EVM wallet')
-					setIsConnecting(false)
-				},
+		try {
+			if (!window.ethereum) {
+				throw new Error('No EVM wallet found. Please install MetaMask or another browser wallet.')
 			}
-		)
-	}, [wagmiConnect])
+
+			// Request accounts
+			const accounts = await window.ethereum.request({
+				method: 'eth_requestAccounts',
+			}) as string[]
+
+			if (!accounts || accounts.length === 0) {
+				throw new Error('No accounts returned from wallet')
+			}
+
+			const address = accounts[0]
+
+			// Try to switch to Republic chain
+			try {
+				await window.ethereum.request({
+					method: 'wallet_switchEthereumChain',
+					params: [{ chainId: `0x${REPUBLIC_CHAIN_CONFIG.chainId.toString(16)}` }],
+				})
+			} catch (switchError: unknown) {
+				// Chain not added, try to add it
+				if ((switchError as { code?: number })?.code === 4902) {
+					await window.ethereum.request({
+						method: 'wallet_addEthereumChain',
+						params: [{
+							chainId: `0x${REPUBLIC_CHAIN_CONFIG.chainId.toString(16)}`,
+							chainName: REPUBLIC_CHAIN_CONFIG.chainName,
+							nativeCurrency: REPUBLIC_CHAIN_CONFIG.nativeCurrency,
+							rpcUrls: [REPUBLIC_CHAIN_CONFIG.endpoints.evmRpc],
+							blockExplorerUrls: ['https://explorer.republicai.io'],
+						}],
+					})
+				} else {
+					console.warn('Failed to switch chain:', switchError)
+				}
+			}
+
+			// Create viem wallet client
+			const client = createWalletClient({
+				account: address as `0x${string}`,
+				chain: republicChain,
+				transport: custom(window.ethereum),
+			})
+
+			setEvmAddress(address)
+			setWalletType('evm')
+			setKeplrAddress(null)
+			setWalletClient(client)
+
+			localStorage.setItem('walletType', 'evm')
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to connect EVM wallet'
+			setError(message)
+			console.error('EVM connection error:', err)
+		} finally {
+			setIsConnecting(false)
+		}
+	}, [])
 
 	// Disconnect wallet
 	const disconnect = useCallback(() => {
-		if (walletType === 'evm') {
-			disconnectWagmi()
-		}
-
 		setWalletType(null)
+		setEvmAddress(null)
 		setKeplrAddress(null)
+		setWalletClient(null)
 		setError(null)
 		localStorage.removeItem('walletType')
-	}, [walletType, disconnectWagmi])
+	}, [])
 
 	// Get display address based on wallet type
 	const getDisplayAddress = useCallback(() => {
@@ -168,23 +239,56 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 		return null
 	}, [walletType, cosmosAddress, evmAddress])
 
-	// Handle EVM wallet connection state changes
+	// Listen for account changes
 	useEffect(() => {
-		if (walletType === 'evm' && isEvmConnected && evmWagmiAddress) {
-			// EVM wallet connected successfully
-			setIsConnecting(false)
-		}
-	}, [walletType, isEvmConnected, evmWagmiAddress])
+		if (!window.ethereum || walletType !== 'evm') return
 
-	// Restore wallet type from localStorage on mount
+		const handleAccountsChanged = (accounts: unknown) => {
+			const accts = accounts as string[]
+			if (accts.length === 0) {
+				disconnect()
+			} else if (accts[0] !== evmAddress) {
+				setEvmAddress(accts[0])
+				// Update wallet client with new account
+				const client = createWalletClient({
+					account: accts[0] as `0x${string}`,
+					chain: republicChain,
+					transport: custom(window.ethereum!),
+				})
+				setWalletClient(client)
+			}
+		}
+
+		window.ethereum.on('accountsChanged', handleAccountsChanged)
+		return () => {
+			window.ethereum?.removeListener('accountsChanged', handleAccountsChanged)
+		}
+	}, [walletType, evmAddress, disconnect])
+
+	// Restore wallet connection on mount
 	useEffect(() => {
 		const savedType = localStorage.getItem('walletType') as WalletType
 		if (savedType === 'keplr') {
-			// Try to reconnect Keplr
 			connectKeplr().catch(console.error)
 		} else if (savedType === 'evm') {
-			// EVM reconnection is handled by wagmi's persistence
-			setWalletType('evm')
+			// Check if still connected
+			if (window.ethereum) {
+				window.ethereum.request({ method: 'eth_accounts' })
+					.then((accounts) => {
+						const accts = accounts as string[]
+						if (accts.length > 0) {
+							setEvmAddress(accts[0])
+							setWalletType('evm')
+							const client = createWalletClient({
+								account: accts[0] as `0x${string}`,
+								chain: republicChain,
+								transport: custom(window.ethereum!),
+							})
+							setWalletClient(client)
+						}
+					})
+					.catch(console.error)
+			}
 		}
 	}, [connectKeplr])
 
@@ -192,13 +296,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 		isConnected,
 		isConnecting,
 		walletType,
-		evmAddress,
+		evmAddress: derivedEvmAddress,
 		cosmosAddress,
 		error,
 		connectKeplr,
 		connectEvm,
 		disconnect,
 		getDisplayAddress,
+		walletClient,
 	}
 
 	return (
@@ -217,9 +322,10 @@ const defaultWalletContext: WalletContextValue = {
 	cosmosAddress: null,
 	error: null,
 	connectKeplr: async () => { console.warn('Wallet provider not available') },
-	connectEvm: () => { console.warn('Wallet provider not available') },
+	connectEvm: async () => { console.warn('Wallet provider not available') },
 	disconnect: () => {},
 	getDisplayAddress: () => null,
+	walletClient: null,
 }
 
 export function useWallet() {

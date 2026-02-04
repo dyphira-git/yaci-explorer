@@ -4,9 +4,8 @@
  */
 
 import { useState, useCallback } from 'react'
-import { useWalletClient } from 'wagmi'
 import { useWallet } from '@/contexts/WalletContext'
-import type { Hex } from 'viem'
+import type { Hex, WalletClient } from 'viem'
 
 import {
 	evmDelegate,
@@ -58,8 +57,7 @@ export interface UseStakingReturn {
  * Automatically routes to EVM precompile or Cosmos SDK based on wallet type
  */
 export function useStaking(): UseStakingReturn {
-	const { isConnected, walletType, evmAddress, cosmosAddress } = useWallet()
-	const { data: walletClient } = useWalletClient()
+	const { isConnected, walletType, evmAddress, cosmosAddress, walletClient } = useWallet()
 
 	const [status, setStatus] = useState<TxStatus>('idle')
 	const [error, setError] = useState<string | null>(null)
@@ -77,7 +75,7 @@ export function useStaking(): UseStakingReturn {
 	 * Execute an EVM staking action
 	 */
 	const executeEvmAction = useCallback(
-		async <T>(action: (client: NonNullable<typeof walletClient>) => Promise<Hex>): Promise<StakingTxResult> => {
+		async (action: (client: WalletClient) => Promise<Hex>): Promise<StakingTxResult> => {
 			if (!walletClient || !evmAddress) {
 				return { error: 'EVM wallet not connected' }
 			}

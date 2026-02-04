@@ -33,9 +33,10 @@ async function build() {
 		outdir: './dist',
 		target: 'browser',
 		format: 'esm',
-		splitting: true,
+		splitting: false,
 		sourcemap: 'inline',
 		minify: false,
+		publicPath: '/',  // Use absolute paths for imports
 		naming: {
 			entry: '[dir]/[name].[ext]',
 			chunk: '[dir]/[name]-[hash].[ext]',
@@ -133,6 +134,25 @@ const server = Bun.serve({
 	async fetch(req) {
 		const url = new URL(req.url)
 		let pathname = url.pathname
+
+		// Handle node_modules requests (for dynamic imports from viem, etc.)
+		if (pathname.startsWith('/node_modules/')) {
+			const filePath = join('.', pathname)
+			try {
+				const file = Bun.file(filePath)
+				const exists = await file.exists()
+				if (exists) {
+					const ext = extname(pathname)
+					const contentType = mimeTypes[ext] || 'application/octet-stream'
+					return new Response(file, {
+						headers: { 'Content-Type': contentType },
+					})
+				}
+			} catch (e) {
+				// Fall through to 404
+			}
+			return new Response('Not found', { status: 404 })
+		}
 
 		// Handle SPA routing - serve index.html for non-file paths
 		if (!pathname.includes('.')) {

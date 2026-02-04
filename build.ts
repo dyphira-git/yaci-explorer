@@ -11,9 +11,10 @@ const result = await Bun.build({
 	outdir: './dist',
 	target: 'browser',
 	format: 'esm',
-	splitting: true,
+	splitting: false,  // Disabled to avoid path resolution issues with Bun bundler
 	sourcemap: isProd ? 'external' : 'inline',
 	minify: isProd,
+	publicPath: '/',  // Use absolute paths for imports
 	naming: {
 		entry: '[dir]/[name]-[hash].[ext]',
 		chunk: '[dir]/[name]-[hash].[ext]',
