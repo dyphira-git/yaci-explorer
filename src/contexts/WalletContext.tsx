@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { createWalletClient, custom, type WalletClient } from 'viem'
+import { createWalletClient, createPublicClient, custom, http, type WalletClient, type PublicClient, formatEther } from 'viem'
 import { evmToCosmosAddress, cosmosToEvmAddress } from '@/lib/address'
 import { REPUBLIC_CHAIN_CONFIG } from '@/lib/chain-config'
 
@@ -33,6 +33,11 @@ interface WalletContextValue extends WalletState {
 
 	// Utility
 	getDisplayAddress: () => string | null
+	refreshBalance: () => Promise<void>
+
+	// Balance (in human-readable format, e.g., "1.5" RAI)
+	balance: string | null
+	isLoadingBalance: boolean
 
 	// Wallet client for transactions
 	walletClient: WalletClient | null
@@ -83,6 +88,12 @@ const republicChain = {
 	},
 } as const
 
+// Create a public client for reading chain data (balances, etc.)
+const publicClient = createPublicClient({
+	chain: republicChain,
+	transport: http(REPUBLIC_CHAIN_CONFIG.endpoints.evmRpc),
+})
+
 export function WalletProvider({ children }: { children: ReactNode }) {
 	const [walletType, setWalletType] = useState<WalletType>(null)
 	const [evmAddress, setEvmAddress] = useState<string | null>(null)
@@ -90,6 +101,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 	const [isConnecting, setIsConnecting] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [walletClient, setWalletClient] = useState<WalletClient | null>(null)
+	const [balance, setBalance] = useState<string | null>(null)
+	const [isLoadingBalance, setIsLoadingBalance] = useState(false)
 
 	// Derive cosmos address from EVM or use Keplr's directly
 	const cosmosAddress = walletType === 'keplr' && keplrAddress
@@ -109,6 +122,36 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 		(walletType === 'keplr' && keplrAddress !== null) ||
 		(walletType === 'evm' && evmAddress !== null)
 	)
+
+	// Fetch balance using EVM JSON-RPC
+	const refreshBalance = useCallback(async () => {
+		const addressToCheck = derivedEvmAddress
+		if (!addressToCheck) {
+			setBalance(null)
+			return
+		}
+
+		setIsLoadingBalance(true)
+		try {
+			const balanceWei = await publicClient.getBalance({
+				address: addressToCheck as `0x${string}`,
+			})
+			// Format from wei (18 decimals) to human-readable
+			const formatted = formatEther(balanceWei)
+			// Trim to reasonable precision (6 decimal places)
+			const parts = formatted.split('.')
+			if (parts.length === 2 && parts[1].length > 6) {
+				setBalance(`${parts[0]}.${parts[1].slice(0, 6)}`)
+			} else {
+				setBalance(formatted)
+			}
+		} catch (err) {
+			console.error('Failed to fetch balance:', err)
+			setBalance(null)
+		} finally {
+			setIsLoadingBalance(false)
+		}
+	}, [derivedEvmAddress])
 
 	// Connect to Keplr
 	const connectKeplr = useCallback(async () => {
@@ -239,6 +282,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 		return null
 	}, [walletType, cosmosAddress, evmAddress])
 
+	// Fetch balance when connected or address changes
+	useEffect(() => {
+		if (isConnected && derivedEvmAddress) {
+			refreshBalance()
+		} else {
+			setBalance(null)
+		}
+	}, [isConnected, derivedEvmAddress, refreshBalance])
+
 	// Listen for account changes
 	useEffect(() => {
 		if (!window.ethereum || walletType !== 'evm') return
@@ -303,6 +355,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 		connectEvm,
 		disconnect,
 		getDisplayAddress,
+		refreshBalance,
+		balance,
+		isLoadingBalance,
 		walletClient,
 	}
 
@@ -325,6 +380,9 @@ const defaultWalletContext: WalletContextValue = {
 	connectEvm: async () => { console.warn('Wallet provider not available') },
 	disconnect: () => {},
 	getDisplayAddress: () => null,
+	refreshBalance: async () => {},
+	balance: null,
+	isLoadingBalance: false,
 	walletClient: null,
 }
 
