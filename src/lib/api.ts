@@ -632,6 +632,107 @@ export class YaciClient {
 		return result.length > 0
 	}
 
+	async getEvmContractDetails(address: string): Promise<{
+		address: string
+		creator: string | null
+		creation_tx: string | null
+		creation_height: number | null
+		bytecode_hash: string | null
+		is_verified: boolean
+		name: string | null
+		abi: unknown | null
+	} | null> {
+		const result = await this.query<Array<{
+			address: string
+			creator: string | null
+			creation_tx: string | null
+			creation_height: number | null
+			bytecode_hash: string | null
+			is_verified: boolean
+			name: string | null
+			abi: unknown | null
+		}>>('evm_contracts', {
+			address: `eq.${address.toLowerCase()}`,
+			limit: '1'
+		})
+		return result[0] || null
+	}
+
+	async getEvmContractCalls(address: string, limit = 50, offset = 0): Promise<{
+		data: Array<{
+			tx_id: string
+			hash: string
+			from: string
+			value: string
+			gas_used: number | null
+			status: number
+			function_name: string | null
+			function_signature: string | null
+			data: string | null
+		}>
+		total: number
+	}> {
+		const data = await this.query<Array<{
+			tx_id: string
+			hash: string
+			from: string
+			value: string
+			gas_used: number | null
+			status: number
+			function_name: string | null
+			function_signature: string | null
+			data: string | null
+		}>>('evm_transactions', {
+			to: `eq.${address}`,
+			order: 'tx_id.desc',
+			limit: String(limit),
+			offset: String(offset),
+			select: 'tx_id,hash,from,value,gas_used,status,function_name,function_signature,data'
+		})
+
+		// For total count, fetch all tx_ids (lighter query)
+		const allTxs = await this.query<Array<{ tx_id: string }>>('evm_transactions', {
+			to: `eq.${address}`,
+			select: 'tx_id'
+		})
+
+		return {
+			data,
+			total: allTxs.length
+		}
+	}
+
+	async getEvmContractFunctionStats(address: string): Promise<Array<{
+		function_name: string | null
+		function_signature: string | null
+		call_count: number
+	}>> {
+		// Get function call frequency for a contract
+		const txs = await this.query<Array<{
+			function_name: string | null
+			function_signature: string | null
+		}>>('evm_transactions', {
+			to: `eq.${address}`,
+			select: 'function_name,function_signature'
+		})
+
+		// Aggregate by function
+		const stats = new Map<string, { name: string | null; signature: string | null; count: number }>()
+		for (const tx of txs) {
+			const key = tx.function_signature || 'unknown'
+			const existing = stats.get(key)
+			if (existing) {
+				existing.count++
+			} else {
+				stats.set(key, { name: tx.function_name, signature: tx.function_signature, count: 1 })
+			}
+		}
+
+		return Array.from(stats.values())
+			.map(s => ({ function_name: s.name, function_signature: s.signature, call_count: s.count }))
+			.sort((a, b) => b.call_count - a.call_count)
+	}
+
 	async getEvmTokens(limit = 50, offset = 0): Promise<Array<{
 		address: string
 		name: string | null

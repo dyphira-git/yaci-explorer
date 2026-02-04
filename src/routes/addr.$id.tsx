@@ -9,6 +9,7 @@ import { api, getAccountBalances, type EnhancedTransaction, type TokenBalance } 
 import { formatNumber, formatTimeAgo, formatHash, cn, getAddressType, getAlternateAddress, isValidAddress } from '@/lib/utils'
 import { formatDenomAmount, getDenomMetadata } from '@/lib/denom'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ContractDetails } from '@/components/ContractDetails'
 import {
 	Table,
 	TableBody,
@@ -279,6 +280,11 @@ export default function AddressDetailPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Contract Details (only for contracts) */}
+			{isContract && hexAddr && (
+				<ContractDetails address={hexAddr} />
+			)}
 
 			{/* Transactions Table */}
 			<Card>
