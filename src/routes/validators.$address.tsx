@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "react-router"
-import { ArrowLeft, Shield } from "lucide-react"
+import { ArrowLeft, Shield, AlertTriangle, CheckCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Table,
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AddressChip } from "@/components/AddressChip"
-import { api } from "@/lib/api"
+import { api, type ValidatorJailingEvent } from "@/lib/api"
 import { formatAddress, formatTimeAgo, fixBech32Address } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainInfo } from "@/lib/chain-info"
@@ -111,6 +111,14 @@ export default function ValidatorDetailPage() {
 			),
 		enabled: !!address,
 		staleTime: 15000,
+	})
+
+	const { data: jailingEvents, isLoading: jailingLoading, error: jailingError } = useQuery({
+		queryKey: ["jailing-events", address],
+		queryFn: () => api.getValidatorJailingEvents(address, 20, 0),
+		enabled: !!address,
+		staleTime: 30000,
+		retry: 1,
 	})
 
 	if (error) {
@@ -474,6 +482,69 @@ export default function ValidatorDetailPage() {
 							</CardContent>
 						</Card>
 					)}
+
+					{/* Jailing History */}
+					<Card>
+						<CardHeader>
+							<CardTitle>Jailing History</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{jailingLoading ? (
+								<div className={css(styles.loadingContainer)}>
+									<Skeleton className={css(styles.skeleton)} />
+									<Skeleton className={css(styles.skeleton)} />
+								</div>
+							) : jailingError ? (
+								<div className={css(styles.jailingErrorState)}>
+									<AlertTriangle className={css(styles.jailingErrorIcon)} />
+									<p className={css(styles.mutedText)}>
+										Jailing history not available
+									</p>
+								</div>
+							) : !jailingEvents || jailingEvents.length === 0 ? (
+								<div className={css(styles.jailingCleanState)}>
+									<CheckCircle className={css(styles.jailingCleanIcon)} />
+									<div>
+										<p className={css(styles.jailingCleanTitle)}>Clean Record</p>
+										<p className={css(styles.mutedText)}>
+											No jailing events recorded
+										</p>
+									</div>
+								</div>
+							) : (
+								<div className={css(styles.jailingEventsList)}>
+									{jailingEvents.map((event, index) => (
+										<div
+											key={`${event.height}-${index}`}
+											className={css(styles.jailingEvent)}
+											style={{
+												borderLeftColor: event.event_type === "slash" ? "var(--colors-red-500)" : "var(--colors-orange-500)",
+											}}
+										>
+											<div className={css(styles.jailingEventHeader)}>
+												<Badge variant={event.event_type === "slash" ? "destructive" : "outline"}>
+													{event.event_type.toUpperCase()}
+												</Badge>
+												<Link
+													to={`/blocks/${event.height}`}
+													className={css(styles.txLink)}
+												>
+													#{event.height}
+												</Link>
+											</div>
+											<p className={css(styles.mutedText)}>
+												{event.reason || "No reason provided"}
+												{event.power && ` (Power: ${event.power})`}
+											</p>
+											<p className={css(styles.jailingEventTime)}>
+												{event.detected_at ? formatTimeAgo(event.detected_at) : "-"}
+											</p>
+										</div>
+									))}
+								</div>
+							)}
+						</CardContent>
+					</Card>
 				</div>
 			</div>
 		</div>
@@ -666,5 +737,53 @@ const styles = {
 	skeletonBody: {
 		height: "64",
 		width: "full",
+	},
+	jailingErrorState: {
+		display: "flex",
+		alignItems: "center",
+		gap: "3",
+		py: "4",
+	},
+	jailingErrorIcon: {
+		height: "5",
+		width: "5",
+		color: "fg.muted",
+	},
+	jailingCleanState: {
+		display: "flex",
+		alignItems: "center",
+		gap: "3",
+		py: "4",
+	},
+	jailingCleanIcon: {
+		height: "5",
+		width: "5",
+		color: "republicGreen.default",
+	},
+	jailingCleanTitle: {
+		fontWeight: "medium",
+		fontSize: "sm",
+	},
+	jailingEventsList: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "3",
+	},
+	jailingEvent: {
+		padding: "3",
+		borderRadius: "md",
+		bg: "bg.muted",
+		borderLeft: "3px solid",
+	},
+	jailingEventHeader: {
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "space-between",
+		marginBottom: "1",
+	},
+	jailingEventTime: {
+		fontSize: "xs",
+		color: "fg.muted",
+		marginTop: "1",
 	},
 }

@@ -265,6 +265,27 @@ export interface ValidatorStats {
 	total_bonded_tokens: number
 }
 
+// Jailing event types
+
+export interface ValidatorJailingEvent {
+	height: number
+	event_type: string
+	reason: string
+	power: string
+	detected_at: string
+}
+
+export interface JailingEvent {
+	height: number
+	event_type: string
+	validator_address: string
+	operator_address: string | null
+	moniker: string | null
+	reason: string
+	power: string
+	created_at: string
+}
+
 // Legacy type aliases for compatibility
 export type EnhancedTransaction = Transaction
 
@@ -713,6 +734,30 @@ export class YaciClient {
 	async getValidatorStats(): Promise<ValidatorStats> {
 		const result = await this.query<ValidatorStats[]>('validator_stats')
 		return result[0]
+	}
+
+	async getValidatorJailingEvents(
+		operatorAddress: string,
+		limit = 50,
+		offset = 0
+	): Promise<ValidatorJailingEvent[]> {
+		return this.rpc('get_validator_jailing_events', {
+			_operator_address: operatorAddress,
+			_limit: limit,
+			_offset: offset
+		})
+	}
+
+	async getRecentValidatorEvents(
+		eventTypes: string[] = ['slash', 'liveness', 'jail'],
+		limit = 50,
+		offset = 0
+	): Promise<JailingEvent[]> {
+		return this.rpc('get_recent_validator_events', {
+			_event_types: `{${eventTypes.join(',')}}`,
+			_limit: limit,
+			_offset: offset
+		})
 	}
 
 	// IBC endpoints

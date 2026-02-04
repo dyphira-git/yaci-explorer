@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
-import { Shield } from "lucide-react"
+import { Shield, AlertTriangle, CheckCircle } from "lucide-react"
 import {
 	Card,
 	CardContent,
@@ -9,6 +9,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
 	Table,
 	TableBody,
@@ -20,8 +21,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { api, type Validator } from "@/lib/api"
-import { formatAddress } from "@/lib/utils"
+import { api, type Validator, type JailingEvent } from "@/lib/api"
+import { formatAddress, formatTimeAgo } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainInfo } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
@@ -105,6 +106,110 @@ function formatCommission(rate: number | null): string {
 	if (normalized > 1e6) normalized = normalized / 1e18
 	const pct = normalized > 1 ? normalized : normalized * 100
 	return `${pct.toFixed(2)}%`
+}
+
+function ValidatorEvents() {
+	const { data: events, isLoading, error } = useQuery({
+		queryKey: ["validator-events"],
+		queryFn: () => api.getRecentValidatorEvents(["slash", "liveness", "jail"], 100, 0),
+		staleTime: 30000,
+		retry: 1,
+	})
+
+	if (isLoading) {
+		return (
+			<div className={css(styles.loadingContainer)}>
+				{Array.from({ length: 5 }).map((_, i) => (
+					<Skeleton key={i} className={css(styles.skeleton)} />
+				))}
+			</div>
+		)
+	}
+
+	if (error) {
+		return (
+			<Card>
+				<CardContent className={css(styles.eventsErrorCard)}>
+					<AlertTriangle className={css(styles.eventsErrorIcon)} />
+					<div className={css(styles.eventsErrorText)}>
+						<div className={css(styles.eventsErrorTitle)}>
+							Validator Events Not Available
+						</div>
+						<div className={css(styles.eventsErrorDesc)}>
+							Block results extraction may not be enabled. Run yaci with
+							--enable-block-results flag.
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+		)
+	}
+
+	if (!events || events.length === 0) {
+		return (
+			<Card>
+				<CardContent className={css(styles.eventsEmptyCard)}>
+					<CheckCircle className={css(styles.eventsEmptyIcon)} />
+					<div className={css(styles.eventsEmptyText)}>
+						<div className={css(styles.eventsEmptyTitle)}>No Recent Events</div>
+						<div className={css(styles.eventsEmptyDesc)}>
+							No slashing or jailing events have occurred recently.
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+		)
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Recent Validator Events</CardTitle>
+				<CardDescription>
+					Slashing and jailing events from finalize_block_events
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<div className={css(styles.eventsList)}>
+					{events.map((event, index) => (
+						<div
+							key={`${event.height}-${index}`}
+							className={css(styles.eventItem)}
+							style={{
+								borderLeftColor: event.event_type === "slash" ? "var(--colors-red-500)" : "var(--colors-orange-500)",
+							}}
+						>
+							<div className={css(styles.eventInfo)}>
+								<div className={css(styles.eventHeader)}>
+									<Badge variant={event.event_type === "slash" ? "destructive" : "outline"}>
+										{event.event_type.toUpperCase()}
+									</Badge>
+									<span className={css(styles.eventMoniker)}>
+										{event.moniker || formatAddress(event.validator_address, 8)}
+									</span>
+								</div>
+								<div className={css(styles.eventReason)}>
+									{event.reason || "No reason provided"}
+									{event.power && ` (Power: ${event.power})`}
+								</div>
+							</div>
+							<div className={css(styles.eventMeta)}>
+								<Link
+									to={`/blocks/${event.height}`}
+									className={css(styles.eventBlockLink)}
+								>
+									Block #{event.height}
+								</Link>
+								<div className={css(styles.eventTime)}>
+									{event.created_at ? formatTimeAgo(event.created_at) : "-"}
+								</div>
+							</div>
+						</div>
+					))}
+				</div>
+			</CardContent>
+		</Card>
+	)
 }
 
 export default function ValidatorsPage() {
@@ -225,22 +330,29 @@ export default function ValidatorsPage() {
 				) : null}
 			</div>
 
-			{/* Search Filter */}
-			<div className={css(styles.filterRow)}>
-				<input
-					type="text"
-					placeholder="Search by moniker or address..."
-					value={search}
-					onChange={(e) => {
-						setSearch(e.target.value)
-						setPage(0)
-					}}
-					className={css(styles.searchInput)}
-				/>
-			</div>
+			<Tabs defaultValue="validators" className={css(styles.tabs)}>
+				<TabsList>
+					<TabsTrigger value="validators">Validator Set</TabsTrigger>
+					<TabsTrigger value="events">Jailing Events</TabsTrigger>
+				</TabsList>
 
-			{/* Validators Table */}
-			<Card>
+				<TabsContent value="validators" className={css(styles.tabContent)}>
+					{/* Search Filter */}
+					<div className={css(styles.filterRow)}>
+						<input
+							type="text"
+							placeholder="Search by moniker or address..."
+							value={search}
+							onChange={(e) => {
+								setSearch(e.target.value)
+								setPage(0)
+							}}
+							className={css(styles.searchInput)}
+						/>
+					</div>
+
+					{/* Validators Table */}
+					<Card>
 				<CardHeader>
 					<CardTitle>Validator Set</CardTitle>
 					<CardDescription>
@@ -374,8 +486,13 @@ export default function ValidatorsPage() {
 						</>
 					)}
 				</CardContent>
-			</Card>
+					</Card>
+				</TabsContent>
 
+				<TabsContent value="events" className={css(styles.tabContent)}>
+					<ValidatorEvents />
+				</TabsContent>
+			</Tabs>
 		</div>
 	)
 }
@@ -534,5 +651,103 @@ const styles = {
 	monoSmall: {
 		fontFamily: "mono",
 		fontSize: "xs",
+	},
+	tabs: {
+		width: "full",
+	},
+	tabContent: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "4",
+		marginTop: "4",
+	},
+	eventsList: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "3",
+	},
+	eventItem: {
+		display: "flex",
+		justifyContent: "space-between",
+		alignItems: "center",
+		padding: "4",
+		borderRadius: "md",
+		bg: "bg.muted",
+		borderLeft: "4px solid",
+	},
+	eventInfo: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "1",
+	},
+	eventHeader: {
+		display: "flex",
+		alignItems: "center",
+		gap: "2",
+	},
+	eventMoniker: {
+		fontWeight: "medium",
+	},
+	eventReason: {
+		fontSize: "sm",
+		color: "fg.muted",
+	},
+	eventMeta: {
+		textAlign: "right",
+	},
+	eventBlockLink: {
+		fontSize: "sm",
+		color: "accent.default",
+		_hover: { textDecoration: "underline" },
+	},
+	eventTime: {
+		fontSize: "xs",
+		color: "fg.muted",
+	},
+	eventsErrorCard: {
+		display: "flex",
+		flexDirection: "column",
+		alignItems: "center",
+		gap: "3",
+		py: "8",
+	},
+	eventsErrorIcon: {
+		height: "12",
+		width: "12",
+		color: "fg.muted",
+	},
+	eventsErrorText: {
+		textAlign: "center",
+	},
+	eventsErrorTitle: {
+		fontWeight: "medium",
+		marginBottom: "1",
+	},
+	eventsErrorDesc: {
+		fontSize: "sm",
+		color: "fg.muted",
+	},
+	eventsEmptyCard: {
+		display: "flex",
+		flexDirection: "column",
+		alignItems: "center",
+		gap: "3",
+		py: "8",
+	},
+	eventsEmptyIcon: {
+		height: "12",
+		width: "12",
+		color: "republicGreen.default",
+	},
+	eventsEmptyText: {
+		textAlign: "center",
+	},
+	eventsEmptyTitle: {
+		fontWeight: "medium",
+		marginBottom: "1",
+	},
+	eventsEmptyDesc: {
+		fontSize: "sm",
+		color: "fg.muted",
 	},
 }
