@@ -37,7 +37,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 					</button>
 				</div>
 
-				<div className={styles.content}>
+					<div className={styles.content}>
 					<p className={styles.description}>
 						Connect your wallet to manage delegations and stake tokens.
 					</p>
@@ -56,14 +56,9 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 							disabled={isConnecting}
 						>
 							<div className={styles.optionIcon}>
-								<img
-									src="https://wallet.keplr.app/keplr-brand-assets/keplr-logo.svg"
-									alt="Keplr"
-									className={styles.walletIcon}
-									onError={(e) => {
-										e.currentTarget.style.display = 'none'
-									}}
-								/>
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+									<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none"/>
+								</svg>
 							</div>
 							<div className={styles.optionInfo}>
 								<span className={styles.optionName}>Keplr Wallet</span>
@@ -81,8 +76,8 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 								<Wallet size={24} />
 							</div>
 							<div className={styles.optionInfo}>
-								<span className={styles.optionName}>EVM Wallet</span>
-								<span className={styles.optionDesc}>MetaMask, WalletConnect, etc.</span>
+								<span className={styles.optionName}>Browser Wallet</span>
+								<span className={styles.optionDesc}>MetaMask, Rabby, etc.</span>
 							</div>
 						</button>
 					</div>
