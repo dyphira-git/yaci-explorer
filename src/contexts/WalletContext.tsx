@@ -3,8 +3,9 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { useAccount, useConnect, useDisconnect, useWalletClient } from 'wagmi'
-import { evmToCosmosAddress, cosmosToEvmAddress, isEvmAddress } from '@/lib/address'
+import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { injected } from 'wagmi/connectors'
+import { evmToCosmosAddress, cosmosToEvmAddress } from '@/lib/address'
 import { REPUBLIC_CHAIN_CONFIG } from '@/lib/chain-config'
 
 // Types
@@ -63,8 +64,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
 	// Wagmi hooks for EVM wallet
 	const { address: evmWagmiAddress, isConnected: isEvmConnected } = useAccount()
+	const { connect: wagmiConnect, isPending: isWagmiConnecting } = useConnect()
 	const { disconnect: disconnectWagmi } = useDisconnect()
-	const { data: walletClient } = useWalletClient()
 
 	// Derive addresses based on wallet type
 	const evmAddress = walletType === 'evm' && evmWagmiAddress
@@ -127,14 +128,26 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 		}
 	}, [])
 
-	// Connect EVM wallet (opens AppKit modal)
+	// Connect EVM wallet (uses injected provider like MetaMask)
 	const connectEvm = useCallback(() => {
 		setError(null)
-		setWalletType('evm')
-		localStorage.setItem('walletType', 'evm')
-		// The actual connection is handled by AppKit modal
-		// This just sets the intent
-	}, [])
+		setIsConnecting(true)
+
+		wagmiConnect(
+			{ connector: injected() },
+			{
+				onSuccess: () => {
+					setWalletType('evm')
+					localStorage.setItem('walletType', 'evm')
+					setIsConnecting(false)
+				},
+				onError: (err) => {
+					setError(err.message || 'Failed to connect EVM wallet')
+					setIsConnecting(false)
+				},
+			}
+		)
+	}, [wagmiConnect])
 
 	// Disconnect wallet
 	const disconnect = useCallback(() => {

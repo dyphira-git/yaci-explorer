@@ -5,7 +5,6 @@
 import { useCallback } from 'react'
 import { Wallet, X } from 'lucide-react'
 import { useWallet } from '@/contexts/WalletContext'
-import { useAppKit } from '@/contexts/AppKitContext'
 import { css } from '@/styled-system/css'
 
 interface ConnectWalletModalProps {
@@ -15,7 +14,6 @@ interface ConnectWalletModalProps {
 
 export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps) {
 	const { connectKeplr, connectEvm, isConnecting, error } = useWallet()
-	const { open: openAppKit } = useAppKit()
 
 	const handleKeplrConnect = useCallback(async () => {
 		await connectKeplr()
@@ -24,9 +22,8 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 
 	const handleEvmConnect = useCallback(() => {
 		connectEvm()
-		openAppKit()
 		onClose()
-	}, [connectEvm, openAppKit, onClose])
+	}, [connectEvm, onClose])
 
 	if (!isOpen) return null
 
