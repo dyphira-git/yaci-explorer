@@ -48,6 +48,7 @@ services:
       ${YACI_INSECURE:+-k}
       --enable-prometheus
       --prometheus-addr 0.0.0.0:2112
+      --enable-block-results
     ports:
       - "2112:2112"
     depends_on:
