@@ -30,10 +30,22 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 
 	// Use portal to render modal at document body level, breaking out of header's stacking context
 	return createPortal(
-		<div className={styles.overlay} onClick={onClose}>
-			<div className={styles.modal} onClick={e => e.stopPropagation()}>
+		// biome-ignore lint/a11y/noStaticElementInteractions: Modal backdrop - click-to-dismiss pattern, keyboard handled via Escape
+		<div
+			className={styles.overlay}
+			onClick={onClose}
+			onKeyDown={e => e.key === 'Escape' && onClose()}
+		>
+			<div
+				className={styles.modal}
+				onClick={e => e.stopPropagation()}
+				onKeyDown={e => e.stopPropagation()}
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="connect-wallet-title"
+			>
 				<div className={styles.header}>
-					<h2 className={styles.title}>Connect Wallet</h2>
+					<h2 id="connect-wallet-title" className={styles.title}>Connect Wallet</h2>
 					<button type="button" className={styles.closeButton} onClick={onClose}>
 						<X size={20} />
 					</button>
@@ -41,7 +53,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 
 					<div className={styles.content}>
 					<p className={styles.description}>
-						Connect your wallet to manage delegations and stake tokens.
+						Connect your wallet to view your account activity and interact with the network.
 					</p>
 
 					{error && (
@@ -58,7 +70,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 							disabled={isConnecting}
 						>
 							<div className={styles.optionIcon}>
-								<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
 									<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none"/>
 								</svg>
 							</div>

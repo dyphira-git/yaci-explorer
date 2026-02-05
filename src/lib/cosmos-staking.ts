@@ -87,7 +87,7 @@ async function getAccountInfo(address: string): Promise<{ accountNumber: number;
 function toCoin(amount: string): { denom: string; amount: string } {
 	// Parse amount - if it contains decimals, it's in display format
 	const parsed = parseFloat(amount)
-	if (isNaN(parsed)) {
+	if (Number.isNaN(parsed)) {
 		throw new Error('Invalid amount')
 	}
 

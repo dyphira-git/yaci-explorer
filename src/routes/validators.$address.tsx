@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "react-router"
-import { ArrowLeft, Shield, AlertTriangle, CheckCircle, Coins } from "lucide-react"
+import { ArrowLeft, Shield, AlertTriangle, CheckCircle, Coins, Award, Activity } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DelegateModal, UndelegateModal } from "@/components/staking"
 import { useWallet } from "@/contexts/WalletContext"
@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AddressChip } from "@/components/AddressChip"
-import { api, type ValidatorJailingEvent } from "@/lib/api"
+import { api, } from "@/lib/api"
 import { formatAddress, formatTimeAgo, fixBech32Address } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainInfo } from "@/lib/chain-info"
@@ -123,6 +123,24 @@ export default function ValidatorDetailPage() {
 		queryFn: () => api.getValidatorJailingEvents(address, 20, 0),
 		enabled: !!address,
 		staleTime: 30000,
+		retry: 1,
+	})
+
+	// Performance metrics from block_results
+	const { data: performance, isLoading: performanceLoading } = useQuery({
+		queryKey: ["validator-performance", address],
+		queryFn: () => api.getValidatorPerformance(address),
+		enabled: !!address,
+		staleTime: 60000,
+		retry: 1,
+	})
+
+	// Lifetime rewards
+	const { data: totalRewards, isLoading: rewardsLoading } = useQuery({
+		queryKey: ["validator-total-rewards", address],
+		queryFn: () => api.getValidatorTotalRewards(address),
+		enabled: !!address,
+		staleTime: 60000,
 		retry: 1,
 	})
 
@@ -435,6 +453,99 @@ export default function ValidatorDetailPage() {
 									</div>
 								)}
 							</div>
+						</CardContent>
+					</Card>
+
+					{/* Performance Metrics */}
+					<Card>
+						<CardHeader>
+							<CardTitle className={css(styles.stakingTitle)}>
+								<Activity className={css(styles.stakingIcon)} />
+								Performance
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{performanceLoading ? (
+								<div className={css(styles.loadingContainer)}>
+									<Skeleton className={css(styles.skeleton)} />
+								</div>
+							) : performance ? (
+								<div className={css(styles.sidebarFields)}>
+									<div className={css(styles.sidebarRow)}>
+										<span className={css(styles.sidebarLabel)}>Uptime</span>
+										<span className={css(styles.sidebarValue)} style={{
+											color: performance.uptime_percentage >= 95 ? 'var(--colors-green-500)' :
+												performance.uptime_percentage >= 80 ? 'var(--colors-yellow-500)' : 'var(--colors-red-500)'
+										}}>
+											{performance.uptime_percentage.toFixed(1)}%
+										</span>
+									</div>
+									<div className={css(styles.sidebarRow)}>
+										<span className={css(styles.sidebarLabel)}>Blocks Signed</span>
+										<span className={css(styles.sidebarValue)}>
+											{performance.blocks_signed.toLocaleString()}
+										</span>
+									</div>
+									{performance.rewards_rank && (
+										<div className={css(styles.sidebarRow)}>
+											<span className={css(styles.sidebarLabel)}>Rewards Rank</span>
+											<span className={css(styles.sidebarValue)}>
+												#{performance.rewards_rank}
+											</span>
+										</div>
+									)}
+									{performance.delegation_rank && (
+										<div className={css(styles.sidebarRow)}>
+											<span className={css(styles.sidebarLabel)}>Delegation Rank</span>
+											<span className={css(styles.sidebarValue)}>
+												#{performance.delegation_rank}
+											</span>
+										</div>
+									)}
+								</div>
+							) : (
+								<p className={css(styles.mutedText)}>Performance data not available</p>
+							)}
+						</CardContent>
+					</Card>
+
+					{/* Lifetime Rewards */}
+					<Card>
+						<CardHeader>
+							<CardTitle className={css(styles.stakingTitle)}>
+								<Award className={css(styles.stakingIcon)} />
+								Lifetime Earnings
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{rewardsLoading ? (
+								<div className={css(styles.loadingContainer)}>
+									<Skeleton className={css(styles.skeleton)} />
+								</div>
+							) : totalRewards ? (
+								<div className={css(styles.sidebarFields)}>
+									<div className={css(styles.sidebarRow)}>
+										<span className={css(styles.sidebarLabel)}>Total Rewards</span>
+										<span className={css(styles.sidebarValue)}>
+											{formatDenomAmount(totalRewards.total_rewards, baseDenom, { maxDecimals: 2 })} {displayDenom}
+										</span>
+									</div>
+									<div className={css(styles.sidebarRow)}>
+										<span className={css(styles.sidebarLabel)}>Total Commission</span>
+										<span className={css(styles.sidebarValue)}>
+											{formatDenomAmount(totalRewards.total_commission, baseDenom, { maxDecimals: 2 })} {displayDenom}
+										</span>
+									</div>
+									<div className={css(styles.sidebarRow)}>
+										<span className={css(styles.sidebarLabel)}>Active Blocks</span>
+										<span className={css(styles.sidebarValue)}>
+											{totalRewards.blocks_with_rewards.toLocaleString()}
+										</span>
+									</div>
+								</div>
+							) : (
+								<p className={css(styles.mutedText)}>Rewards data not available</p>
+							)}
 						</CardContent>
 					</Card>
 

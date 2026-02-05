@@ -86,7 +86,7 @@ export function parseAddress(address: string, prefix = DEFAULT_PREFIX): {
 	if (isCosmosAddress(address)) {
 		const decoded = bech32.decode(address)
 		const isValidator = decoded.prefix.includes('valoper')
-		const accountPrefix = isValidator ? decoded.prefix.replace('valoper', '') : decoded.prefix
+		const _accountPrefix = isValidator ? decoded.prefix.replace('valoper', '') : decoded.prefix
 
 		return {
 			type: 'cosmos',

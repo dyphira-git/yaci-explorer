@@ -287,6 +287,78 @@ export interface JailingEvent {
 	created_at: string
 }
 
+// Analytics types
+
+export interface NetworkOverview {
+	total_validators: number
+	active_validators: number
+	jailed_validators: number
+	total_bonded_tokens: string
+	total_rewards_24h: string
+	total_commission_24h: string
+	avg_block_time: number
+	total_transactions: number
+	unique_addresses: number
+}
+
+export interface ValidatorRewardsHistory {
+	height: number
+	rewards: string
+	commission: string
+	block_time: string | null
+}
+
+export interface ValidatorTotalRewards {
+	total_rewards: string
+	total_commission: string
+	blocks_with_rewards: number
+}
+
+export interface HourlyRewards {
+	hour: string
+	rewards: string
+	commission: string
+}
+
+export interface ValidatorPerformance {
+	uptime_percentage: number
+	blocks_signed: number
+	blocks_missed: number
+	total_jailing_events: number
+	last_jailed_height: number | null
+	rewards_rank: number | null
+	delegation_rank: number | null
+}
+
+export interface ValidatorLeaderboardEntry {
+	operator_address: string
+	moniker: string
+	tokens: string
+	commission_rate: string
+	jailed: boolean
+	delegator_count: number
+	lifetime_rewards: string
+	lifetime_commission: string
+	jail_count: number
+	last_jailed_height: number | null
+}
+
+export interface ValidatorEventSummary {
+	height: number
+	event_type: string
+	validator_moniker: string | null
+	operator_address: string | null
+	details: Record<string, string>
+	block_time: string | null
+}
+
+export interface DailyRewards {
+	date: string
+	total_rewards: string
+	total_commission: string
+	validators_earning: number
+}
+
 // Legacy type aliases for compatibility
 export type EnhancedTransaction = Transaction
 
@@ -985,6 +1057,64 @@ export class YaciClient {
 			_validator_address: validatorAddress,
 			_limit: limit,
 			_offset: offset
+		})
+	}
+
+	// Analytics endpoints
+
+	async getNetworkOverview(): Promise<NetworkOverview> {
+		const result = await this.rpc<NetworkOverview[]>('get_network_overview')
+		return result[0]
+	}
+
+	async getValidatorRewardsHistory(
+		operatorAddress: string,
+		limit = 100,
+		offset = 0
+	): Promise<ValidatorRewardsHistory[]> {
+		return this.rpc('get_validator_rewards_history', {
+			_operator_address: operatorAddress,
+			_limit: limit,
+			_offset: offset
+		})
+	}
+
+	async getValidatorTotalRewards(operatorAddress: string): Promise<ValidatorTotalRewards> {
+		const result = await this.rpc<ValidatorTotalRewards[]>('get_validator_total_rewards', {
+			_operator_address: operatorAddress
+		})
+		return result[0]
+	}
+
+	async getHourlyRewards(hours = 24): Promise<HourlyRewards[]> {
+		return this.rpc('get_hourly_rewards', {
+			_hours: hours
+		})
+	}
+
+	async getValidatorPerformance(operatorAddress: string): Promise<ValidatorPerformance> {
+		const result = await this.rpc<ValidatorPerformance[]>('get_validator_performance', {
+			_operator_address: operatorAddress
+		})
+		return result[0]
+	}
+
+	async getValidatorLeaderboard(): Promise<ValidatorLeaderboardEntry[]> {
+		return this.query('mv_validator_leaderboard', {
+			order: 'tokens.desc'
+		})
+	}
+
+	async getValidatorEventsSummary(limit = 20): Promise<ValidatorEventSummary[]> {
+		return this.rpc('get_validator_events_summary', {
+			_limit: limit
+		})
+	}
+
+	async getDailyRewards(days = 30): Promise<DailyRewards[]> {
+		return this.query('mv_daily_rewards', {
+			order: 'date.desc',
+			limit: String(days)
 		})
 	}
 

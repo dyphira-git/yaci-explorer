@@ -9,7 +9,6 @@ import { api } from '@/lib/api'
 import { formatNumber, formatTimeAgo, formatHash, getTransactionStatus } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { css } from '@/styled-system/css'
-import { hstack, grid } from '@/styled-system/patterns'
 
 export default function BlockDetailPage() {
   const [mounted, setMounted] = useState(false)

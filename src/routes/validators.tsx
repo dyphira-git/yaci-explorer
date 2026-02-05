@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { api, type Validator, type JailingEvent } from "@/lib/api"
+import { api, type Validator, } from "@/lib/api"
 import { formatAddress, formatTimeAgo } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainInfo } from "@/lib/chain-info"

@@ -3,7 +3,7 @@
  * Uses direct EIP-1193 provider access instead of wagmi for Bun compatibility
  */
 
-import { type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WalletProvider } from './WalletContext'
 

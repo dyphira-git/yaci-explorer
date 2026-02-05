@@ -40,7 +40,7 @@ export function RedelegateModal({
 	currentDelegation,
 }: RedelegateModalProps) {
 	const [amount, setAmount] = useState('')
-	const { isConnected, walletType } = useWallet()
+	const { isConnected } = useWallet()
 	const { redelegate, status, error, txHash, reset, isReady } = useStaking()
 
 	useEffect(() => {

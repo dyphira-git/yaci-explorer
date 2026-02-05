@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { createWalletClient, createPublicClient, custom, http, type WalletClient, type PublicClient, formatEther } from 'viem'
+import { createWalletClient, createPublicClient, custom, http, type WalletClient, formatEther } from 'viem'
 import { evmToCosmosAddress, cosmosToEvmAddress } from '@/lib/address'
 import { REPUBLIC_CHAIN_CONFIG } from '@/lib/chain-config'
 
@@ -302,12 +302,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 			} else if (accts[0] !== evmAddress) {
 				setEvmAddress(accts[0])
 				// Update wallet client with new account
-				const client = createWalletClient({
-					account: accts[0] as `0x${string}`,
-					chain: republicChain,
-					transport: custom(window.ethereum!),
-				})
-				setWalletClient(client)
+				if (window.ethereum) {
+					const client = createWalletClient({
+						account: accts[0] as `0x${string}`,
+						chain: republicChain,
+						transport: custom(window.ethereum),
+					})
+					setWalletClient(client)
+				}
 			}
 		}
 
@@ -328,13 +330,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 				window.ethereum.request({ method: 'eth_accounts' })
 					.then((accounts) => {
 						const accts = accounts as string[]
-						if (accts.length > 0) {
+						if (accts.length > 0 && window.ethereum) {
 							setEvmAddress(accts[0])
 							setWalletType('evm')
 							const client = createWalletClient({
 								account: accts[0] as `0x${string}`,
 								chain: republicChain,
-								transport: custom(window.ethereum!),
+								transport: custom(window.ethereum),
 							})
 							setWalletClient(client)
 						}

@@ -39,7 +39,7 @@ export function ClaimRewardsModal({
 	totalRewards,
 }: ClaimRewardsModalProps) {
 	const [selectedValidators, setSelectedValidators] = useState<Set<string>>(new Set())
-	const { isConnected, walletType } = useWallet()
+	const { isConnected } = useWallet()
 	const { withdrawRewards, withdrawAllRewards, status, error, txHash, reset, isReady } = useStaking()
 
 	useEffect(() => {
@@ -136,7 +136,7 @@ export function ClaimRewardsModal({
 											/>
 											<div className={styles.validatorInfo}>
 												<span className={styles.validatorName}>
-													{reward.validatorMoniker || reward.validatorAddress.slice(0, 20) + '...'}
+													{reward.validatorMoniker || `${reward.validatorAddress.slice(0, 20)}...`}
 												</span>
 												<span className={styles.rewardAmount}>{reward.rewardAmount} RAI</span>
 											</div>
