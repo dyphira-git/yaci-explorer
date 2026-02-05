@@ -41,7 +41,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 
 					<div className={styles.content}>
 					<p className={styles.description}>
-						Connect your wallet to manage delegations and stake tokens.
+						Connect your wallet to view your account activity and interact with the network.
 					</p>
 
 					{error && (

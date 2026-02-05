@@ -11,10 +11,9 @@ const navigation = [
   { name: 'Blocks', href: '/blocks' },
   { name: 'Transactions', href: '/tx' },
   { name: 'Validators', href: '/validators' },
-  { name: 'My Staking', href: '/delegations' },
+  { name: 'Analytics', href: '/analytics' },
   { name: 'Compute', href: '/compute' },
   { name: 'EVM', href: '/evm/contracts' },
-  { name: 'Analytics', href: '/analytics' },
 ]
 
 export function Header() {
