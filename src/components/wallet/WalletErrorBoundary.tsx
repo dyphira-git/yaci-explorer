@@ -24,7 +24,7 @@ export class WalletErrorBoundary extends Component<Props, State> {
 		return { hasError: true }
 	}
 
-	componentDidCatch(error: Error, info: { componentStack: string }) {
+	componentDidCatch(error: Error, _info: { componentStack: string }) {
 		// Log wallet-related errors silently - these are expected when dynamic imports fail
 		console.warn('Wallet component error (dynamic import may have failed):', error.message)
 	}

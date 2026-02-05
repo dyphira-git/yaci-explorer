@@ -103,7 +103,7 @@ export function useStaking(): UseStakingReturn {
 	 * Execute a Cosmos staking action
 	 */
 	const executeCosmosAction = useCallback(
-		async <T>(action: () => Promise<{ txHash: string }>): Promise<StakingTxResult> => {
+		async <_T>(action: () => Promise<{ txHash: string }>): Promise<StakingTxResult> => {
 			if (!cosmosAddress) {
 				return { error: 'Cosmos wallet not connected' }
 			}
@@ -141,10 +141,10 @@ export function useStaking(): UseStakingReturn {
 						amount,
 					})
 				)
-			} else if (walletType === 'keplr') {
+			} else if (walletType === 'keplr' && cosmosAddress) {
 				return executeCosmosAction(() =>
 					cosmosDelegate({
-						delegatorAddress: cosmosAddress!,
+						delegatorAddress: cosmosAddress,
 						validatorAddress,
 						amount,
 					})
@@ -169,10 +169,10 @@ export function useStaking(): UseStakingReturn {
 						amount,
 					})
 				)
-			} else if (walletType === 'keplr') {
+			} else if (walletType === 'keplr' && cosmosAddress) {
 				return executeCosmosAction(() =>
 					cosmosUndelegate({
-						delegatorAddress: cosmosAddress!,
+						delegatorAddress: cosmosAddress,
 						validatorAddress,
 						amount,
 					})
@@ -199,10 +199,10 @@ export function useStaking(): UseStakingReturn {
 						validatorAddress: srcValidator,
 					})
 				)
-			} else if (walletType === 'keplr') {
+			} else if (walletType === 'keplr' && cosmosAddress) {
 				return executeCosmosAction(() =>
 					cosmosRedelegate({
-						delegatorAddress: cosmosAddress!,
+						delegatorAddress: cosmosAddress,
 						srcValidatorAddress: srcValidator,
 						dstValidatorAddress: dstValidator,
 						amount,
@@ -250,10 +250,10 @@ export function useStaking(): UseStakingReturn {
 						validatorAddress,
 					})
 				)
-			} else if (walletType === 'keplr') {
+			} else if (walletType === 'keplr' && cosmosAddress) {
 				return executeCosmosAction(() =>
 					cosmosWithdrawRewards({
-						delegatorAddress: cosmosAddress!,
+						delegatorAddress: cosmosAddress,
 						validatorAddress,
 					})
 				)
@@ -282,9 +282,9 @@ export function useStaking(): UseStakingReturn {
 					if (result.error) return result
 				}
 				return { hash: txHash || undefined }
-			} else if (walletType === 'keplr') {
+			} else if (walletType === 'keplr' && cosmosAddress) {
 				return executeCosmosAction(() =>
-					cosmosWithdrawAllRewards(cosmosAddress!, validatorAddresses)
+					cosmosWithdrawAllRewards(cosmosAddress, validatorAddresses)
 				)
 			}
 			return { error: 'No wallet connected' }
@@ -305,10 +305,10 @@ export function useStaking(): UseStakingReturn {
 						withdrawAddress,
 					})
 				)
-			} else if (walletType === 'keplr') {
+			} else if (walletType === 'keplr' && cosmosAddress) {
 				return executeCosmosAction(() =>
 					cosmosSetWithdrawAddress({
-						delegatorAddress: cosmosAddress!,
+						delegatorAddress: cosmosAddress,
 						withdrawAddress,
 					})
 				)

@@ -91,11 +91,11 @@ export function decodeBasicParams(signature: string, data: string): Array<{ name
 			params.push({
 				name: `param${i}`,
 				type,
-				value: '0x' + chunk.slice(24)
+				value: `0x${chunk.slice(24)}`
 			})
 		} else if (type.startsWith('uint') || type.startsWith('int')) {
 			// Integer types
-			const value = BigInt('0x' + chunk)
+			const value = BigInt(`0x${chunk}`)
 			params.push({
 				name: `param${i}`,
 				type,
@@ -112,7 +112,7 @@ export function decodeBasicParams(signature: string, data: string): Array<{ name
 			params.push({
 				name: `param${i}`,
 				type,
-				value: '0x' + chunk
+				value: `0x${chunk}`
 			})
 		}
 

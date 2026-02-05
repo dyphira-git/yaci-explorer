@@ -20,7 +20,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BlockIntervalChart } from '@/components/analytics/BlockIntervalChart'
 import { TransactionVolumeChart } from '@/components/analytics/TransactionVolumeChart'
-import { api, NetworkOverview, ValidatorLeaderboardEntry, ValidatorEventSummary, HourlyRewards } from '@/lib/api'
+import { api, type NetworkOverview, type ValidatorLeaderboardEntry, type ValidatorEventSummary, type HourlyRewards } from '@/lib/api'
 import { formatDenomAmount } from '@/lib/denom'
 import { DenomDisplay } from '@/components/common/DenomDisplay'
 import { formatAddress } from '@/lib/utils'
@@ -406,7 +406,7 @@ function HourlyRewardsChart({ data }: { data: HourlyRewards[] }) {
  */
 function RewardsSummary({ overview }: { overview: NetworkOverview }) {
 	const baseDenom = getChainBaseDenom()
-	const displayDenom = getChainDisplayDenom()
+	const _displayDenom = getChainDisplayDenom()
 
 	return (
 		<div className={styles.rewardsSummaryGrid}>
