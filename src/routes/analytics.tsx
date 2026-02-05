@@ -2,28 +2,22 @@
  * Analytics Dashboard - Network metrics, validator insights, and real-time statistics
  */
 
-import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
 import {
 	Activity,
-	Award,
-	ChevronRight,
 	Clock,
 	Database,
 	Shield,
-	ShieldAlert,
 	TrendingUp,
-	Users,
-	Zap
+	Users
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BlockIntervalChart } from '@/components/analytics/BlockIntervalChart'
 import { TransactionVolumeChart } from '@/components/analytics/TransactionVolumeChart'
-import { api, type NetworkOverview, type ValidatorLeaderboardEntry, type ValidatorEventSummary, type HourlyRewards } from '@/lib/api'
+import { api, type NetworkOverview, type HourlyRewards } from '@/lib/api'
 import { formatDenomAmount } from '@/lib/denom'
 import { DenomDisplay } from '@/components/common/DenomDisplay'
-import { formatAddress } from '@/lib/utils'
 import { getChainBaseDenom, getChainDisplayDenom } from '@/lib/chain-info'
 import { css, cx } from '@/styled-system/css'
 import { token } from '@/styled-system/tokens'
@@ -40,7 +34,7 @@ function formatNumber(num: number): string {
 /**
  * Formats time elapsed in human-readable format
  */
-function formatTimeAgo(dateString: string): string {
+function _formatTimeAgo(dateString: string): string {
 	const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
 	if (seconds < 60) return `${seconds}s ago`
 	if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
@@ -145,124 +139,6 @@ function NetworkHealthBar({ overview }: { overview: NetworkOverview }) {
 				<span>{healthScore.toFixed(0)}%</span>
 			</div>
 		</div>
-	)
-}
-
-/**
- * Validator Leaderboard - Top validators with key metrics
- */
-function ValidatorLeaderboard({ validators }: { validators: ValidatorLeaderboardEntry[] }) {
-	const baseDenom = getChainBaseDenom()
-	const topValidators = validators.slice(0, 10)
-
-	return (
-		<Card withGlow>
-			<CardHeader className={styles.sectionHeader}>
-				<div className={styles.sectionTitleWrap}>
-					<Award className={styles.sectionIcon} />
-					<CardTitle>Validator Leaderboard</CardTitle>
-				</div>
-				<Link to="/validators" className={styles.viewAllLink}>
-					View all <ChevronRight size={14} />
-				</Link>
-			</CardHeader>
-			<CardContent className={styles.leaderboardContent}>
-				<div className={styles.leaderboardHeader}>
-					<span className={styles.leaderboardRank}>#</span>
-					<span className={styles.leaderboardValidator}>Validator</span>
-					<span className={styles.leaderboardStake}>Voting Power</span>
-					<span className={styles.leaderboardRewards}>Lifetime Rewards</span>
-					<span className={styles.leaderboardCommission}>Commission</span>
-				</div>
-				{topValidators.map((validator, idx) => (
-					<Link
-						key={validator.operator_address}
-						to={`/validators/${validator.operator_address}`}
-						className={cx(styles.leaderboardRow, validator.jailed && styles.leaderboardRowJailed)}
-					>
-						<span className={styles.leaderboardRank}>
-							{idx + 1}
-						</span>
-						<span className={styles.leaderboardValidator}>
-							<span className={styles.validatorMoniker}>
-								{validator.moniker || formatAddress(validator.operator_address, 8)}
-							</span>
-							{validator.jailed && (
-								<span className={styles.jailedBadge}>Jailed</span>
-							)}
-						</span>
-						<span className={styles.leaderboardStake}>
-							{formatDenomAmount(validator.tokens, baseDenom, { maxDecimals: 0 })}
-						</span>
-						<span className={styles.leaderboardRewards}>
-							{formatDenomAmount(validator.lifetime_rewards, baseDenom, { maxDecimals: 2 })}
-						</span>
-						<span className={styles.leaderboardCommission}>
-							{(parseFloat(validator.commission_rate) * 100).toFixed(1)}%
-						</span>
-					</Link>
-				))}
-			</CardContent>
-		</Card>
-	)
-}
-
-/**
- * Validator Events Feed - Recent slashing/jailing events
- */
-function ValidatorEventsFeed({ events }: { events: ValidatorEventSummary[] }) {
-	const getEventIcon = (eventType: string) => {
-		if (eventType.includes('slash')) return <Zap className={styles.eventIconSlash} />
-		if (eventType.includes('jail')) return <ShieldAlert className={styles.eventIconJail} />
-		return <Activity className={styles.eventIconDefault} />
-	}
-
-	const getEventLabel = (eventType: string) => {
-		if (eventType.includes('slash')) return 'Slashed'
-		if (eventType.includes('jail')) return 'Jailed'
-		if (eventType.includes('unjail')) return 'Unjailed'
-		return eventType.replace(/_/g, ' ')
-	}
-
-	return (
-		<Card>
-			<CardHeader className={styles.sectionHeader}>
-				<div className={styles.sectionTitleWrap}>
-					<ShieldAlert className={styles.sectionIcon} />
-					<CardTitle>Recent Events</CardTitle>
-				</div>
-			</CardHeader>
-			<CardContent className={styles.eventsFeedContent}>
-				{events.length === 0 ? (
-					<div className={styles.emptyState}>
-						<Shield className={styles.emptyIcon} />
-						<span>No recent validator events</span>
-					</div>
-				) : (
-					<div className={styles.eventsList}>
-						{events.slice(0, 8).map((event, idx) => (
-							<div key={`${event.height}-${idx}`} className={styles.eventItem}>
-								<div className={styles.eventIconWrap}>
-									{getEventIcon(event.event_type)}
-								</div>
-								<div className={styles.eventDetails}>
-									<span className={styles.eventTitle}>
-										{event.validator_moniker || formatAddress(event.operator_address || '', 8)}
-									</span>
-									<span className={styles.eventType}>{getEventLabel(event.event_type)}</span>
-								</div>
-								<div className={styles.eventMeta}>
-									<span className={styles.eventHeight}>#{event.height.toLocaleString()}</span>
-									{event.block_time && (
-										<span className={styles.eventTime}>{formatTimeAgo(event.block_time)}</span>
-									)}
-								</div>
-							</div>
-						))}
-					</div>
-				)}
-			</CardContent>
-		</Card>
 	)
 }
 
@@ -438,25 +314,13 @@ export default function AnalyticsPage() {
 		refetchInterval: 30000,
 	})
 
-	const { data: leaderboard, isLoading: leaderboardLoading } = useQuery({
-		queryKey: ['validator-leaderboard'],
-		queryFn: () => api.getValidatorLeaderboard(),
-		refetchInterval: 60000,
-	})
-
-	const { data: events } = useQuery({
-		queryKey: ['validator-events-summary'],
-		queryFn: () => api.getValidatorEventsSummary(20),
-		refetchInterval: 30000,
-	})
-
 	const { data: hourlyRewards } = useQuery({
 		queryKey: ['hourly-rewards'],
 		queryFn: () => api.getHourlyRewards(24),
 		refetchInterval: 60000,
 	})
 
-	if (overviewLoading || leaderboardLoading) {
+	if (overviewLoading) {
 		return (
 			<div className={styles.container}>
 				<div className={styles.header}>
@@ -490,12 +354,6 @@ export default function AnalyticsPage() {
 					<RewardsSummary overview={overview} />
 				</div>
 			)}
-
-			{/* Leaderboard + Events Side by Side */}
-			<div className={styles.leaderboardEventsGrid}>
-				{leaderboard && <ValidatorLeaderboard validators={leaderboard} />}
-				{events && <ValidatorEventsFeed events={events} />}
-			</div>
 
 			{/* Charts Section */}
 			<div className={styles.chartsSection}>
