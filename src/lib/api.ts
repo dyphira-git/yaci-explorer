@@ -238,6 +238,13 @@ export interface Validator {
 	voting_power_pct: number
 	delegator_count: number
 	ipfs_peer_id?: string | null
+	signing_percentage: number | null
+	blocks_signed: number | null
+	blocks_missed: number | null
+	last_signed_height: number | null
+	missed_blocks_counter: number | null
+	last_jailed_height: number | null
+	last_jailed_at: string | null
 }
 
 export interface ValidatorDetail extends Validator {
@@ -286,6 +293,8 @@ export interface JailingEvent {
 	reason: string
 	power: string
 	created_at: string
+	block_time: string | null
+	attributes: Record<string, string> | null
 }
 
 // Analytics types
@@ -300,6 +309,7 @@ export interface NetworkOverview {
 	avg_block_time: number
 	total_transactions: number
 	unique_addresses: number
+	max_validators: number
 }
 
 export interface ValidatorRewardsHistory {
