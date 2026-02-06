@@ -551,7 +551,7 @@ export default function ValidatorsPage() {
 												color: getUptimeColor(v.signing_percentage),
 											})}
 										>
-											{v.signing_percentage !== null
+											{v.signing_percentage != null
 												? `${v.signing_percentage.toFixed(1)}%`
 												: "-"}
 										</TableCell>
