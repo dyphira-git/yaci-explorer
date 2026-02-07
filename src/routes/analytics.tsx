@@ -100,10 +100,13 @@ function HeroStats({ overview }: { overview: NetworkOverview }) {
 }
 
 /**
- * Network Health Bar - Visual indicator of network status
+ * Network Health Bar - Visual indicator of network status.
+ * Uses active vs bonded (max_validators) ratio instead of total registered.
+ * Most Cosmos chains have many registered validators that never enter the active set.
  */
 function NetworkHealthBar({ overview }: { overview: NetworkOverview }) {
-	const healthScore = Math.min(100, (overview.active_validators / Math.max(1, overview.total_validators)) * 100)
+	const bondedTarget = overview.max_validators || overview.active_validators || 1
+	const healthScore = Math.min(100, (overview.active_validators / bondedTarget) * 100)
 	const isHealthy = healthScore >= 66
 	const isWarning = healthScore >= 33 && healthScore < 66
 
@@ -135,7 +138,7 @@ function NetworkHealthBar({ overview }: { overview: NetworkOverview }) {
 				/>
 			</div>
 			<div className={styles.healthStats}>
-				<span>{overview.active_validators} / {overview.total_validators} validators active</span>
+				<span>{overview.active_validators} of {bondedTarget} bonded validators active</span>
 				<span>{healthScore.toFixed(0)}%</span>
 			</div>
 		</div>
@@ -311,7 +314,7 @@ export default function AnalyticsPage() {
 	const { data: overview, isLoading: overviewLoading } = useQuery({
 		queryKey: ['network-overview'],
 		queryFn: () => api.getNetworkOverview(),
-		refetchInterval: 30000,
+		refetchInterval: 10_000,
 	})
 
 	const { data: hourlyRewards } = useQuery({

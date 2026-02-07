@@ -30,12 +30,6 @@ import { css } from "@/styled-system/css"
 type SortField = "tokens" | "moniker" | "commission" | "status" | "delegators" | "uptime"
 type SortDir = "asc" | "desc"
 
-/** Extended validator with signing stats */
-interface ValidatorWithUptime extends Validator {
-	signing_percentage: number | null
-	blocks_missed: number | null
-}
-
 /** Checks if validator is active (bonded and not jailed) */
 function isActiveValidator(v: Validator): boolean {
 	return v.status === "BOND_STATUS_BONDED" && !v.jailed
@@ -43,14 +37,13 @@ function isActiveValidator(v: Validator): boolean {
 
 /**
  * Sorts validators with active first, then by secondary field.
- * Primary: active validators before inactive
- * Secondary: user-selected field and direction
+ * Signing stats are now inline on the Validator object (populated by DB triggers).
  */
 function sortValidators(
-	validators: ValidatorWithUptime[] | undefined,
+	validators: Validator[] | undefined,
 	sortBy: SortField,
 	sortDir: SortDir
-): ValidatorWithUptime[] {
+): Validator[] {
 	if (!validators) return []
 	return [...validators].sort((a, b) => {
 		// Primary sort: active validators first
@@ -133,6 +126,7 @@ function ValidatorEvents() {
 		queryKey: ["validator-events"],
 		queryFn: () => api.getRecentValidatorEvents(["slash", "liveness", "jail"], 100, 0),
 		staleTime: 30000,
+		refetchInterval: 10_000,
 		retry: 1,
 	})
 
@@ -191,7 +185,10 @@ function ValidatorEvents() {
 			</CardHeader>
 			<CardContent>
 				<div className={css(styles.eventsList)}>
-					{events.map((event, index) => (
+					{events.map((event, index) => {
+						const displayName = event.moniker
+							|| (event.validator_address ? `${formatAddress(event.validator_address, 10)}` : "Unknown")
+						return (
 						<div
 							key={`${event.height}-${index}`}
 							className={css(styles.eventItem)}
@@ -209,27 +206,37 @@ function ValidatorEvents() {
 											to={`/validators/${event.operator_address}`}
 											className={css(styles.eventMoniker)}
 										>
-											{event.moniker || "Unknown Validator"}
+											{displayName}
 										</Link>
 									) : (
 										<span className={css(styles.eventMoniker)}>
-											{event.moniker || "Unknown Validator"}
+											{displayName}
 										</span>
 									)}
 								</div>
 								<div className={css(styles.eventDetails)}>
 									<div className={css(styles.eventReason)}>
-										{formatEventReason(event.event_type, event.reason)}
+										{formatEventReason(event.event_type, event.reason, event.attributes)}
 									</div>
 									<div className={css(styles.eventAddresses)}>
-										<span className={css(styles.eventAddressLabel)}>Consensus:</span>
-										<code className={css(styles.eventAddressValue)}>
-											{formatAddress(event.validator_address, 12)}
-										</code>
+										{event.validator_address && (
+											<>
+												<span className={css(styles.eventAddressLabel)}>Consensus:</span>
+												<code className={css(styles.eventAddressValue)}>
+													{formatAddress(event.validator_address, 12)}
+												</code>
+											</>
+										)}
 										{event.power && (
 											<>
 												<span className={css(styles.eventAddressLabel)}>Power:</span>
 												<span className={css(styles.eventAddressValue)}>{event.power}</span>
+											</>
+										)}
+										{event.attributes?.missed_blocks_counter && (
+											<>
+												<span className={css(styles.eventAddressLabel)}>Missed:</span>
+												<span className={css(styles.eventAddressValue)}>{event.attributes.missed_blocks_counter}</span>
 											</>
 										)}
 									</div>
@@ -243,11 +250,16 @@ function ValidatorEvents() {
 									Block #{event.height}
 								</Link>
 								<div className={css(styles.eventTime)}>
-									{event.created_at ? formatTimeAgo(event.created_at) : "-"}
+									{event.block_time
+										? formatTimeAgo(event.block_time)
+										: event.created_at
+											? formatTimeAgo(event.created_at)
+											: "-"}
 								</div>
 							</div>
 						</div>
-					))}
+						)
+					})}
 				</div>
 			</CardContent>
 		</Card>
@@ -255,24 +267,28 @@ function ValidatorEvents() {
 }
 
 /**
- * Format event reason for better readability
+ * Format event reason for better readability.
+ * Falls back to extracting detail from event attributes if reason is empty.
  */
-function formatEventReason(eventType: string, reason: string | null): string {
-	if (!reason) return "Event occurred"
-	// Clean up common reason formats
-	if (reason.includes("missing_signature")) {
-		return "Missed block signature (liveness fault)"
+function formatEventReason(eventType: string, reason: string | null, attributes?: Record<string, string> | null): string {
+	if (reason) {
+		if (reason.includes("missing_signature")) return "Missed block signature (liveness fault)"
+		if (reason.includes("double_sign")) return "Double signing detected"
+		if (eventType === "jail") return `Jailed: ${reason}`
+		if (eventType === "liveness") return `Liveness fault: ${reason}`
+		return reason
 	}
-	if (reason.includes("double_sign")) {
-		return "Double signing detected"
+	// Extract detail from attributes when reason is empty
+	if (attributes) {
+		const missed = attributes.missed_blocks_counter
+		const jailedUntil = attributes.jailed_until
+		if (missed) return `Missed ${missed} blocks`
+		if (jailedUntil) return `Jailed until ${jailedUntil}`
 	}
-	if (eventType === "jail") {
-		return `Jailed: ${reason}`
-	}
-	if (eventType === "liveness") {
-		return `Liveness fault: ${reason}`
-	}
-	return reason
+	if (eventType === "liveness") return "Liveness fault detected"
+	if (eventType === "jail") return "Validator jailed"
+	if (eventType === "slash") return "Validator slashed"
+	return "Event occurred"
 }
 
 export default function ValidatorsPage() {
@@ -287,6 +303,7 @@ export default function ValidatorsPage() {
 		queryKey: ["validator-stats"],
 		queryFn: () => api.getValidatorStats(),
 		staleTime: 30000,
+		refetchInterval: 10_000,
 	})
 
 	const { data: chainInfo } = useQuery({
@@ -305,46 +322,15 @@ export default function ValidatorsPage() {
 				search: search || undefined,
 			}),
 		staleTime: 15000,
+		refetchInterval: 10_000,
 	})
-
-	// Fetch signing stats for all validators (indexed block signatures)
-	const { data: signingStats } = useQuery({
-		queryKey: ["validators-signing-stats"],
-		queryFn: () => api.getAllValidatorsSigningStats(10000),
-		staleTime: 30000,
-	})
-
-	// Create a map of consensus_address -> signing stats for quick lookup
-	const signingStatsMap = useMemo(() => {
-		const map = new Map<string, { signing_percentage: number; blocks_missed: number }>()
-		if (signingStats) {
-			for (const stat of signingStats) {
-				map.set(stat.consensus_address, {
-					signing_percentage: stat.signing_percentage,
-					blocks_missed: stat.blocks_missed,
-				})
-			}
-		}
-		return map
-	}, [signingStats])
-
-	// Merge validators with signing stats
-	const validatorsWithUptime = useMemo((): ValidatorWithUptime[] => {
-		if (!validatorsData?.data) return []
-		return validatorsData.data.map((v) => {
-			const stats = v.consensus_address ? signingStatsMap.get(v.consensus_address.toUpperCase()) : null
-			return {
-				...v,
-				signing_percentage: stats?.signing_percentage ?? null,
-				blocks_missed: stats?.blocks_missed ?? null,
-			}
-		})
-	}, [validatorsData, signingStatsMap])
 
 	// Sort validators: active first, then by user-selected secondary sort
+	// Signing stats (signing_percentage, blocks_missed) are now inline on validator objects
+	// via DB triggers on validator_block_signatures - no separate query needed.
 	const sortedValidators = useMemo(() => {
-		return sortValidators(validatorsWithUptime, sortBy, sortDir)
-	}, [validatorsWithUptime, sortBy, sortDir])
+		return sortValidators(validatorsData?.data, sortBy, sortDir)
+	}, [validatorsData, sortBy, sortDir])
 
 	// Paginate the sorted results
 	const paginatedValidators = useMemo(() => {
@@ -565,7 +551,7 @@ export default function ValidatorsPage() {
 												color: getUptimeColor(v.signing_percentage),
 											})}
 										>
-											{v.signing_percentage !== null
+											{v.signing_percentage != null
 												? `${v.signing_percentage.toFixed(1)}%`
 												: "-"}
 										</TableCell>
