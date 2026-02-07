@@ -1,10 +1,13 @@
 import { Link, useLocation } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
 import { SearchBar } from '@/components/common/search-bar'
 import { WalletButton } from '@/components/wallet/WalletButton'
 import { WalletErrorBoundary } from '@/components/wallet/WalletErrorBoundary'
 import { getBrandingConfig } from '@/config/branding'
 import { css, cx } from '@/styled-system/css'
 import { RepublicLogo } from '@/components/icons/icons'
+import { api } from '@/lib/api'
 
 const navigation = [
   { name: 'Dashboard', href: '/' },
@@ -15,6 +18,98 @@ const navigation = [
   { name: 'Compute', href: '/compute' },
   { name: 'EVM', href: '/evm/contracts' },
 ]
+
+/**
+ * Computes how far behind the latest indexed block is from current time.
+ * @returns Human-readable lag string and severity level, or null if synced.
+ */
+function computeSyncLag(blockTime: string): { label: string; severity: 'warning' | 'critical' } | null {
+  const blockDate = new Date(blockTime)
+  const now = new Date()
+  const lagSeconds = Math.floor((now.getTime() - blockDate.getTime()) / 1000)
+
+  // Consider synced if within 60 seconds
+  if (lagSeconds < 60) return null
+
+  const lagMinutes = Math.floor(lagSeconds / 60)
+  const lagHours = Math.floor(lagMinutes / 60)
+  const lagDays = Math.floor(lagHours / 24)
+
+  let label: string
+  if (lagDays > 0) {
+    label = `${lagDays}d ${lagHours % 24}h behind`
+  } else if (lagHours > 0) {
+    label = `${lagHours}h ${lagMinutes % 60}m behind`
+  } else {
+    label = `${lagMinutes}m behind`
+  }
+
+  const severity = lagMinutes >= 30 ? 'critical' : 'warning'
+  return { label, severity }
+}
+
+/** Pulsing sync status indicator shown when the indexer is behind chain tip. */
+function SyncIndicator() {
+  const [now, setNow] = useState(Date.now())
+
+  // Tick every 10s to re-evaluate lag against wall clock
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 10_000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const { data: latestBlock } = useQuery({
+    queryKey: ['sync-status-block'],
+    queryFn: () => api.getLatestBlock(),
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+  })
+
+  if (!latestBlock) return null
+
+  const blockTime = latestBlock.data?.block?.header?.time
+  if (!blockTime) return null
+
+  const lag = computeSyncLag(blockTime)
+  if (!lag) return null
+
+  const isCritical = lag.severity === 'critical'
+
+  return (
+    <div
+      className={css({
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1.5',
+        px: '2.5',
+        py: '1',
+        rounded: 'full',
+        fontSize: 'xs',
+        fontWeight: 'semibold',
+        letterSpacing: '0.02em',
+        whiteSpace: 'nowrap',
+        bg: isCritical ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+        color: isCritical ? '#fca5a5' : '#fcd34d',
+        border: '1px solid',
+        borderColor: isCritical ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)',
+        flexShrink: 0,
+      })}
+      title={`Latest indexed block: ${latestBlock.id?.toLocaleString()} (${blockTime})`}
+    >
+      <span
+        className={css({
+          w: '2',
+          h: '2',
+          rounded: 'full',
+          bg: isCritical ? '#ef4444' : '#f59e0b',
+          animation: 'pulse 2s ease-in-out infinite',
+          flexShrink: 0,
+        })}
+      />
+      Syncing - {lag.label}
+    </div>
+  )
+}
 
 export function Header() {
   const location = useLocation()
@@ -52,6 +147,8 @@ export function Header() {
               })}
             </nav>
           </div>
+
+          <SyncIndicator />
 
           <div className={styles.right}>
             <SearchBar />
