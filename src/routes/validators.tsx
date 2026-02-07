@@ -498,7 +498,6 @@ export default function ValidatorsPage() {
 										>
 											Status{sortIndicator("status")}
 										</TableHead>
-										<TableHead>IPFS</TableHead>
 										<TableHead
 											className={css(styles.sortableHead)}
 											onClick={() => handleSort("uptime")}
@@ -544,20 +543,15 @@ export default function ValidatorsPage() {
 											<TableCell>
 												{validatorStatusBadge(v.status, v.jailed)}
 											</TableCell>
-										<TableCell
-											className={css({
-												fontFamily: "mono",
-												fontSize: "sm",
-												color: getUptimeColor(v.signing_percentage),
-											})}
-										>
-											{v.signing_percentage != null
-												? `${v.signing_percentage.toFixed(1)}%`
-												: "-"}
-										</TableCell>
-											<TableCell className={css(styles.monoSmall)}>
-												{v.ipfs_peer_id
-													? `${v.ipfs_peer_id.slice(0, 16)}...`
+											<TableCell
+												className={css({
+													fontFamily: "mono",
+													fontSize: "sm",
+													color: getUptimeColor(v.signing_percentage),
+												})}
+											>
+												{v.signing_percentage != null
+													? `${v.signing_percentage.toFixed(1)}%`
 													: "-"}
 											</TableCell>
 											<TableCell className={css(styles.monoText)}>
