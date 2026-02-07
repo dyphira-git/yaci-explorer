@@ -1,23 +1,17 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "react-router"
 import { ArrowLeft, Shield, AlertTriangle, CheckCircle, Coins, Award, Activity } from "lucide-react"
+import { type ColumnDef, createColumnHelper } from "@tanstack/react-table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DelegateModal, UndelegateModal } from "@/components/staking"
 import { useWallet } from "@/contexts/WalletContext"
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table"
+import { DataTable } from "@/components/ui/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AddressChip } from "@/components/AddressChip"
-import { api, getValidatorSigningInfoLive, getSlashingParams } from "@/lib/api"
+import { api, type DelegationEvent, getValidatorSigningInfoLive, getSlashingParams } from "@/lib/api"
 import { formatAddress, formatTimeAgo, fixBech32Address } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainInfo } from "@/lib/chain-info"
@@ -86,6 +80,8 @@ function calculateLivenessPercent(missedStr: string, windowStr: string): string 
 	return ((signed / window) * 100).toFixed(1)
 }
 
+const delegationColumnHelper = createColumnHelper<DelegationEvent>()
+
 export default function ValidatorDetailPage() {
 	const params = useParams()
 	const address = params.address || ""
@@ -105,6 +101,62 @@ export default function ValidatorDetailPage() {
 
 	const baseDenom = chainInfo?.baseDenom || "unknown"
 	const displayDenom = chainInfo?.displayDenom || "UNKNOWN"
+
+	/** Column definitions for the delegation events DataTable */
+	const delegationColumns: ColumnDef<DelegationEvent, any>[] = useMemo(
+		() => [
+			delegationColumnHelper.accessor("event_type", {
+				header: "Type",
+				enableSorting: false,
+				cell: ({ getValue }) => eventTypeBadge(getValue()),
+			}),
+			delegationColumnHelper.accessor("delegator_address", {
+				header: "Delegator",
+				enableSorting: false,
+				cell: ({ getValue }) => {
+					const addr = getValue()
+					return addr ? (
+						<AddressChip address={fixBech32Address(addr) || addr} />
+					) : (
+						<span className={css(styles.mutedText)}>-</span>
+					)
+				},
+			}),
+			delegationColumnHelper.accessor("amount", {
+				header: "Amount",
+				enableSorting: false,
+				cell: ({ row }) => (
+					<span className={css(styles.monoSmall)}>
+						{row.original.amount
+							? `${formatDenomAmount(row.original.amount, row.original.denom || baseDenom, { maxDecimals: 2 })} ${displayDenom}`
+							: "-"}
+					</span>
+				),
+			}),
+			delegationColumnHelper.accessor("tx_hash", {
+				header: "Tx Hash",
+				enableSorting: false,
+				cell: ({ getValue }) => (
+					<Link
+						to={`/tx/${getValue()}`}
+						className={css(styles.txLink)}
+					>
+						{formatAddress(getValue(), 6)}
+					</Link>
+				),
+			}),
+			delegationColumnHelper.accessor("timestamp", {
+				header: "Time",
+				enableSorting: false,
+				cell: ({ getValue }) => (
+					<span className={css(styles.mutedText)}>
+						{getValue() ? formatTimeAgo(getValue()!) : "-"}
+					</span>
+				),
+			}),
+		],
+		[baseDenom, displayDenom],
+	)
 
 	const {
 		data: validator,
@@ -329,86 +381,38 @@ export default function ValidatorDetailPage() {
 							</div>
 						</CardHeader>
 						<CardContent>
-							{eventsLoading ? (
-								<div className={css(styles.loadingContainer)}>
-									{Array.from({ length: 3 }).map((_, i) => (
-										<Skeleton key={i} className={css(styles.skeleton)} />
-									))}
-								</div>
-							) : !eventsData?.data?.length ? (
-								<p className={css(styles.mutedText)}>No delegation events found.</p>
-							) : (
-								<>
-									<Table>
-										<TableHeader>
-											<TableRow>
-												<TableHead>Type</TableHead>
-												<TableHead>Delegator</TableHead>
-												<TableHead>Amount</TableHead>
-												<TableHead>Tx Hash</TableHead>
-												<TableHead>Time</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{eventsData.data.map((event) => (
-												<TableRow key={event.id}>
-													<TableCell>
-														{eventTypeBadge(event.event_type)}
-													</TableCell>
-													<TableCell>
-														{event.delegator_address ? (
-														<AddressChip address={fixBech32Address(event.delegator_address) || event.delegator_address} />
-													) : (
-														<span className={css(styles.mutedText)}>-</span>
-													)}
-													</TableCell>
-													<TableCell className={css(styles.monoSmall)}>
-														{event.amount
-															? `${formatDenomAmount(event.amount, event.denom || baseDenom, { maxDecimals: 2 })} ${displayDenom}`
-															: "-"}
-													</TableCell>
-													<TableCell>
-														<Link
-															to={`/tx/${event.tx_hash}`}
-															className={css(styles.txLink)}
-														>
-															{formatAddress(event.tx_hash, 6)}
-														</Link>
-													</TableCell>
-													<TableCell className={css(styles.mutedText)}>
-														{event.timestamp
-															? formatTimeAgo(event.timestamp)
-															: "-"}
-													</TableCell>
-												</TableRow>
-											))}
-										</TableBody>
-									</Table>
+							<DataTable
+								columns={delegationColumns}
+								data={eventsData?.data ?? []}
+								isLoading={eventsLoading}
+								hidePagination
+								getRowId={(row) => String(row.id)}
+								emptyState="No delegation events found."
+								maxHeight="none"
+							/>
 
-									{eventsData.pagination && (
-										<div className={css(styles.pagination)}>
-											<Button
-												variant="outline"
-												size="sm"
-												disabled={!eventsData.pagination.has_prev}
-												onClick={() => setEventPage((p) => p - 1)}
-											>
-												Previous
-											</Button>
-											<span className={css(styles.pageInfo)}>
-												Page {eventPage + 1}
-											</span>
-											<Button
-												variant="outline"
-												size="sm"
-												disabled={!eventsData.pagination.has_next}
-												onClick={() => setEventPage((p) => p + 1)}
-											>
-												Next
-											</Button>
-										</div>
-									)}
-								</>
+							{eventsData?.pagination && (
+								<div className={css(styles.pagination)}>
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={!eventsData.pagination.has_prev}
+										onClick={() => setEventPage((p) => p - 1)}
+									>
+										Previous
+									</Button>
+									<span className={css(styles.pageInfo)}>
+										Page {eventPage + 1}
+									</span>
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={!eventsData.pagination.has_next}
+										onClick={() => setEventPage((p) => p + 1)}
+									>
+										Next
+									</Button>
+								</div>
 							)}
 						</CardContent>
 					</Card>

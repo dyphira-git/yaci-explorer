@@ -6,26 +6,114 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { FileCode, User, Hash, Clock, Activity, CheckCircle, XCircle, } from 'lucide-react'
+import { type ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DataTable } from '@/components/ui/data-table'
 import { api } from '@/lib/api'
 import { formatHash, formatNumber, } from '@/lib/utils'
 import { extractSelector, extractFunctionName, COMMON_SIGNATURES } from '@/lib/4byte'
 import { css } from '@/styled-system/css'
 import { hstack, grid } from '@/styled-system/patterns'
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table'
 
 interface ContractDetailsProps {
 	address: string
 }
+
+/** Shape of a single contract call row from the API */
+interface ContractCall {
+	tx_id: string
+	hash: string
+	from: string
+	value: string
+	gas_used: number | null
+	status: number
+	function_name: string | null
+	function_signature: string | null
+	data: string | null
+}
+
+// -- Column definitions for recent contract calls --
+
+const columnHelper = createColumnHelper<ContractCall>()
+
+const contractCallColumns: ColumnDef<ContractCall, any>[] = [
+	columnHelper.accessor('hash', {
+		header: 'Tx Hash',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<Link
+				to={`/tx/${row.original.tx_id}`}
+				className={css({ fontFamily: 'mono', fontSize: 'sm', color: 'chart.secondary', _hover: { color: 'accent.default' } })}
+			>
+				{formatHash(row.original.hash || row.original.tx_id, 8)}
+			</Link>
+		),
+	}),
+	columnHelper.accessor('from', {
+		header: 'From',
+		enableSorting: false,
+		cell: ({ getValue }) => (
+			<Link
+				to={`/addr/${getValue()}`}
+				className={css({ fontFamily: 'mono', fontSize: 'sm', color: 'chart.secondary', _hover: { color: 'accent.default' } })}
+			>
+				{formatHash(getValue(), 6)}
+			</Link>
+		),
+	}),
+	columnHelper.display({
+		id: 'function',
+		header: 'Function',
+		cell: ({ row }) => {
+			const call = row.original
+			const selector = extractSelector(call.data)
+			const functionDisplay = call.function_name ||
+				(selector && COMMON_SIGNATURES[selector] ? extractFunctionName(COMMON_SIGNATURES[selector]) : null) ||
+				selector ||
+				'unknown'
+
+			return (
+				<>
+					<span className={css({ fontFamily: 'mono', fontSize: 'sm' })}>
+						{functionDisplay}
+					</span>
+					{call.function_signature && (
+						<span className={css({ ml: '1', color: 'fg.muted', fontSize: 'xs' })}>
+							({formatHash(call.function_signature, 4)})
+						</span>
+					)}
+				</>
+			)
+		},
+	}),
+	columnHelper.accessor('value', {
+		header: 'Value',
+		enableSorting: false,
+		cell: ({ getValue }) => (
+			<span className={css({ fontFamily: 'mono', fontSize: 'sm' })}>
+				{getValue() === '0' ? '-' : `${(BigInt(getValue()) / BigInt(10 ** 18)).toString()} RAI`}
+			</span>
+		),
+	}),
+	columnHelper.accessor('status', {
+		header: 'Status',
+		enableSorting: false,
+		cell: ({ getValue }) =>
+			getValue() === 1 ? (
+				<Badge variant="success" className={hstack({ gap: '1' })}>
+					<CheckCircle className={css({ w: '3', h: '3' })} />
+					Success
+				</Badge>
+			) : (
+				<Badge variant="destructive" className={hstack({ gap: '1' })}>
+					<XCircle className={css({ w: '3', h: '3' })} />
+					Failed
+				</Badge>
+			),
+	}),
+]
 
 export function ContractDetails({ address }: ContractDetailsProps) {
 	const { data: contract, isLoading: contractLoading } = useQuery({
@@ -213,83 +301,17 @@ export function ContractDetails({ address }: ContractDetailsProps) {
 					)}
 				</CardHeader>
 				<CardContent>
-					{callsLoading ? (
-						<Skeleton className={css({ h: '48', w: 'full' })} />
-					) : recentCalls && recentCalls.data.length > 0 ? (
-						<div className={css({ borderRadius: 'md', border: '1px solid', borderColor: 'border.default', overflowX: 'auto' })}>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Tx Hash</TableHead>
-										<TableHead>From</TableHead>
-										<TableHead>Function</TableHead>
-										<TableHead>Value</TableHead>
-										<TableHead>Status</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{recentCalls.data.map((call) => {
-										const selector = extractSelector(call.data)
-										const functionDisplay = call.function_name ||
-											(selector && COMMON_SIGNATURES[selector] ? extractFunctionName(COMMON_SIGNATURES[selector]) : null) ||
-											selector ||
-											'unknown'
-
-										return (
-											<TableRow key={call.tx_id}>
-												<TableCell>
-													<Link
-														to={`/tx/${call.tx_id}`}
-														className={css({ fontFamily: 'mono', fontSize: 'sm', color: 'chart.secondary', _hover: { color: 'accent.default' } })}
-													>
-														{formatHash(call.hash || call.tx_id, 8)}
-													</Link>
-												</TableCell>
-												<TableCell>
-													<Link
-														to={`/addr/${call.from}`}
-														className={css({ fontFamily: 'mono', fontSize: 'sm', color: 'chart.secondary', _hover: { color: 'accent.default' } })}
-													>
-														{formatHash(call.from, 6)}
-													</Link>
-												</TableCell>
-												<TableCell>
-													<span className={css({ fontFamily: 'mono', fontSize: 'sm' })}>
-														{functionDisplay}
-													</span>
-													{call.function_signature && (
-														<span className={css({ ml: '1', color: 'fg.muted', fontSize: 'xs' })}>
-															({formatHash(call.function_signature, 4)})
-														</span>
-													)}
-												</TableCell>
-												<TableCell>
-													<span className={css({ fontFamily: 'mono', fontSize: 'sm' })}>
-														{call.value === '0' ? '-' : `${(BigInt(call.value) / BigInt(10 ** 18)).toString()} RAI`}
-													</span>
-												</TableCell>
-												<TableCell>
-													{call.status === 1 ? (
-														<Badge variant="success" className={hstack({ gap: '1' })}>
-															<CheckCircle className={css({ w: '3', h: '3' })} />
-															Success
-														</Badge>
-													) : (
-														<Badge variant="destructive" className={hstack({ gap: '1' })}>
-															<XCircle className={css({ w: '3', h: '3' })} />
-															Failed
-														</Badge>
-													)}
-												</TableCell>
-											</TableRow>
-										)
-									})}
-								</TableBody>
-							</Table>
-						</div>
-					) : (
-						<p className={css({ color: 'fg.muted', fontSize: 'sm' })}>No contract calls found</p>
-					)}
+					<DataTable
+						columns={contractCallColumns}
+						data={recentCalls?.data ?? []}
+						hidePagination
+						isLoading={callsLoading}
+						pageSize={10}
+						getRowId={(call) => call.tx_id}
+						emptyState={
+							<p className={css({ color: 'fg.muted', fontSize: 'sm' })}>No contract calls found</p>
+						}
+					/>
 				</CardContent>
 			</Card>
 		</div>

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
 import { Cpu } from "lucide-react"
+import { type ColumnDef, createColumnHelper } from "@tanstack/react-table"
 import {
 	Card,
 	CardContent,
@@ -9,19 +10,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DataTable } from "@/components/ui/data-table"
 import { AddressChip } from "@/components/AddressChip"
-import { api } from "@/lib/api"
+import { api, type ComputeJob, type ComputeBenchmark } from "@/lib/api"
 import { formatTimeAgo } from "@/lib/utils"
 import { css } from "@/styled-system/css"
 
@@ -40,6 +34,96 @@ function statusBadge(status: string) {
 			return <Badge variant="outline">{status}</Badge>
 	}
 }
+
+// -- Column definitions --
+
+const jobHelper = createColumnHelper<ComputeJob>()
+
+const jobColumns: ColumnDef<ComputeJob, any>[] = [
+	jobHelper.accessor("job_id", {
+		header: "Job ID",
+		enableSorting: false,
+		cell: ({ row }) => (
+			<Link
+				to={`/compute/${row.original.job_id}`}
+				className={css(styles.idLink)}
+			>
+				#{row.original.job_id}
+			</Link>
+		),
+	}),
+	jobHelper.accessor("creator", {
+		header: "Creator",
+		enableSorting: false,
+		cell: ({ row }) => <AddressChip address={row.original.creator} />,
+	}),
+	jobHelper.accessor("target_validator", {
+		header: "Validator",
+		enableSorting: false,
+		cell: ({ row }) => (
+			<AddressChip address={row.original.target_validator} />
+		),
+	}),
+	jobHelper.accessor("status", {
+		header: "Status",
+		enableSorting: false,
+		cell: ({ row }) => statusBadge(row.original.status),
+	}),
+	jobHelper.accessor("submit_time", {
+		header: "Time",
+		enableSorting: false,
+		cell: ({ row }) => (
+			<span className={css(styles.mutedText)}>
+				{row.original.submit_time
+					? formatTimeAgo(row.original.submit_time)
+					: "-"}
+			</span>
+		),
+	}),
+]
+
+const benchHelper = createColumnHelper<ComputeBenchmark>()
+
+const benchmarkColumns: ColumnDef<ComputeBenchmark, any>[] = [
+	benchHelper.accessor("benchmark_id", {
+		header: "ID",
+		enableSorting: false,
+		cell: ({ row }) => (
+			<span className={css(styles.monoText)}>
+				#{row.original.benchmark_id}
+			</span>
+		),
+	}),
+	benchHelper.accessor("creator", {
+		header: "Creator",
+		enableSorting: false,
+		cell: ({ row }) => <AddressChip address={row.original.creator} />,
+	}),
+	benchHelper.accessor("benchmark_type", {
+		header: "Type",
+		enableSorting: false,
+		cell: ({ row }) =>
+			row.original.benchmark_type || (
+				<span className={css(styles.mutedText)}>-</span>
+			),
+	}),
+	benchHelper.accessor("status", {
+		header: "Status",
+		enableSorting: false,
+		cell: ({ row }) => statusBadge(row.original.status),
+	}),
+	benchHelper.accessor("submit_time", {
+		header: "Time",
+		enableSorting: false,
+		cell: ({ row }) => (
+			<span className={css(styles.mutedText)}>
+				{row.original.submit_time
+					? formatTimeAgo(row.original.submit_time)
+					: "-"}
+			</span>
+		),
+	}),
+]
 
 export default function ComputePage() {
 	const [activeTab, setActiveTab] = useState<TabId>("jobs")
@@ -182,13 +266,7 @@ export default function ComputePage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						{jobsLoading ? (
-							<div className={css(styles.loadingContainer)}>
-								{Array.from({ length: 5 }).map((_, i) => (
-									<Skeleton key={i} className={css(styles.skeleton)} />
-								))}
-							</div>
-						) : !jobsData?.data?.length ? (
+						{!jobsLoading && !jobsData?.data?.length ? (
 							<div className={css(styles.emptyState)}>
 								<Cpu className={css(styles.emptyIcon)} />
 								<h3 className={css(styles.emptyTitle)}>No Compute Jobs</h3>
@@ -198,45 +276,15 @@ export default function ComputePage() {
 							</div>
 						) : (
 							<>
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>Job ID</TableHead>
-											<TableHead>Creator</TableHead>
-											<TableHead>Validator</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead>Time</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{jobsData.data.map((job) => (
-											<TableRow key={job.job_id}>
-												<TableCell>
-													<Link
-														to={`/compute/${job.job_id}`}
-														className={css(styles.idLink)}
-													>
-														#{job.job_id}
-													</Link>
-												</TableCell>
-												<TableCell>
-												<AddressChip address={job.creator} />
-											</TableCell>
-											<TableCell>
-												<AddressChip address={job.target_validator} />
-											</TableCell>
-												<TableCell>{statusBadge(job.status)}</TableCell>
-												<TableCell className={css(styles.mutedText)}>
-													{job.submit_time
-														? formatTimeAgo(job.submit_time)
-														: "-"}
-												</TableCell>
-											</TableRow>
-										))}
-									</TableBody>
-								</Table>
+								<DataTable
+									columns={jobColumns}
+									data={jobsData?.data ?? []}
+									isLoading={jobsLoading}
+									getRowId={(row) => String(row.job_id)}
+									hidePagination
+								/>
 
-								{jobsData.pagination && (
+								{jobsData?.pagination && (
 									<div className={css(styles.pagination)}>
 										<Button
 											variant="outline"
@@ -277,13 +325,7 @@ export default function ComputePage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						{benchLoading ? (
-							<div className={css(styles.loadingContainer)}>
-								{Array.from({ length: 5 }).map((_, i) => (
-									<Skeleton key={i} className={css(styles.skeleton)} />
-								))}
-							</div>
-						) : !benchData?.data?.length ? (
+						{!benchLoading && !benchData?.data?.length ? (
 							<div className={css(styles.emptyState)}>
 								<Cpu className={css(styles.emptyIcon)} />
 								<h3 className={css(styles.emptyTitle)}>No Benchmarks</h3>
@@ -293,42 +335,15 @@ export default function ComputePage() {
 							</div>
 						) : (
 							<>
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>ID</TableHead>
-											<TableHead>Creator</TableHead>
-											<TableHead>Type</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead>Time</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{benchData.data.map((bench) => (
-											<TableRow key={bench.benchmark_id}>
-												<TableCell className={css(styles.monoText)}>
-													#{bench.benchmark_id}
-												</TableCell>
-												<TableCell>
-												<AddressChip address={bench.creator} />
-											</TableCell>
-												<TableCell>
-													{bench.benchmark_type || (
-														<span className={css(styles.mutedText)}>-</span>
-													)}
-												</TableCell>
-												<TableCell>{statusBadge(bench.status)}</TableCell>
-												<TableCell className={css(styles.mutedText)}>
-													{bench.submit_time
-														? formatTimeAgo(bench.submit_time)
-														: "-"}
-												</TableCell>
-											</TableRow>
-										))}
-									</TableBody>
-								</Table>
+								<DataTable
+									columns={benchmarkColumns}
+									data={benchData?.data ?? []}
+									isLoading={benchLoading}
+									getRowId={(row) => String(row.benchmark_id)}
+									hidePagination
+								/>
 
-								{benchData.pagination && (
+								{benchData?.pagination && (
 									<div className={css(styles.pagination)}>
 										<Button
 											variant="outline"
@@ -466,15 +481,6 @@ const styles = {
 		py: "1.5",
 		color: "fg.default",
 	},
-	loadingContainer: {
-		display: "flex",
-		flexDirection: "column",
-		gap: "3",
-	},
-	skeleton: {
-		height: "12",
-		width: "full",
-	},
 	emptyState: {
 		textAlign: "center",
 		py: "12",
@@ -503,11 +509,6 @@ const styles = {
 		fontWeight: "semibold",
 		color: "accent.default",
 		_hover: { textDecoration: "underline" },
-	},
-	addressLink: {
-		fontFamily: "mono",
-		fontSize: "xs",
-		_hover: { color: "accent.default" },
 	},
 	monoText: {
 		fontFamily: "mono",

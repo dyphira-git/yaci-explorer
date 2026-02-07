@@ -2,6 +2,7 @@ import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
 import { Shield, AlertTriangle, CheckCircle } from "lucide-react"
+import { type ColumnDef, createColumnHelper, type SortingState } from "@tanstack/react-table"
 import {
 	Card,
 	CardContent,
@@ -10,73 +11,19 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { api, type Validator, } from "@/lib/api"
+import { DataTable } from "@/components/ui/data-table"
+import { ValidatorAvatar } from "@/components/ValidatorAvatar"
+import { api, type Validator } from "@/lib/api"
 import { formatAddress, formatTimeAgo } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainInfo } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
 
-type SortField = "tokens" | "moniker" | "commission" | "status" | "delegators" | "uptime"
-type SortDir = "asc" | "desc"
-
 /** Checks if validator is active (bonded and not jailed) */
 function isActiveValidator(v: Validator): boolean {
 	return v.status === "BOND_STATUS_BONDED" && !v.jailed
-}
-
-/**
- * Sorts validators with active first, then by secondary field.
- * Signing stats are now inline on the Validator object (populated by DB triggers).
- */
-function sortValidators(
-	validators: Validator[] | undefined,
-	sortBy: SortField,
-	sortDir: SortDir
-): Validator[] {
-	if (!validators) return []
-	return [...validators].sort((a, b) => {
-		// Primary sort: active validators first
-		const aActive = isActiveValidator(a)
-		const bActive = isActiveValidator(b)
-		if (aActive !== bActive) {
-			return aActive ? -1 : 1
-		}
-
-		// Secondary sort by selected field
-		let cmp = 0
-		switch (sortBy) {
-			case "moniker":
-				cmp = (a.moniker || "").localeCompare(b.moniker || "")
-				break
-			case "tokens":
-				cmp = (a.voting_power_pct || 0) - (b.voting_power_pct || 0)
-				break
-			case "commission":
-				cmp = (a.commission_rate || 0) - (b.commission_rate || 0)
-				break
-			case "status":
-				cmp = (a.status || "").localeCompare(b.status || "")
-				break
-			case "delegators":
-				cmp = (a.delegator_count || 0) - (b.delegator_count || 0)
-				break
-			case "uptime":
-				cmp = (a.signing_percentage ?? 100) - (b.signing_percentage ?? 100)
-				break
-		}
-		return sortDir === "desc" ? -cmp : cmp
-	})
 }
 
 /**
@@ -120,6 +67,89 @@ function getUptimeColor(pct: number | null): string {
 	if (pct >= 80) return "yellow.500"
 	return "red.500"
 }
+
+// -- Column definitions --
+
+const columnHelper = createColumnHelper<Validator>()
+
+const validatorColumns: ColumnDef<Validator, any>[] = [
+	// Hidden sort column: active validators always first
+	columnHelper.accessor((row) => (isActiveValidator(row) ? 0 : 1), {
+		id: "_activeRank",
+		header: "",
+		enableHiding: true,
+	}),
+	columnHelper.display({
+		id: "avatar",
+		header: "",
+		size: 48,
+		enableSorting: false,
+		cell: ({ row }) => (
+			<ValidatorAvatar identity={row.original.identity} moniker={row.original.moniker} />
+		),
+	}),
+	columnHelper.accessor("moniker", {
+		header: "Moniker",
+		cell: ({ row }) => (
+			<Link
+				to={`/validators/${row.original.operator_address}`}
+				className={css(styles.monikerLink)}
+			>
+				{row.original.moniker || "Unknown"}
+			</Link>
+		),
+		sortingFn: "alphanumeric",
+	}),
+	columnHelper.accessor("operator_address", {
+		header: "Operator Address",
+		enableSorting: false,
+		cell: ({ row }) => (
+			<Link
+				to={`/validators/${row.original.operator_address}`}
+				className={css(styles.addressLink)}
+			>
+				{formatAddress(row.original.operator_address, 8)}
+			</Link>
+		),
+	}),
+	columnHelper.accessor("voting_power_pct", {
+		header: "Voting Power",
+		cell: ({ getValue }) => (
+			<span className={css(styles.monoText)}>{getValue()?.toFixed(2)}%</span>
+		),
+	}),
+	columnHelper.accessor("commission_rate", {
+		header: "Commission",
+		cell: ({ getValue }) => (
+			<span className={css(styles.monoText)}>{formatCommission(getValue())}</span>
+		),
+	}),
+	columnHelper.accessor("status", {
+		header: "Status",
+		cell: ({ row }) => validatorStatusBadge(row.original.status, row.original.jailed),
+	}),
+	columnHelper.accessor("signing_percentage", {
+		header: "Uptime",
+		cell: ({ row }) => {
+			const pct = row.original.signing_percentage
+			return (
+				<span
+					className={css({
+						fontFamily: "mono",
+						fontSize: "sm",
+						color: getUptimeColor(pct),
+					})}
+				>
+					{pct != null ? `${pct.toFixed(1)}%` : "-"}
+				</span>
+			)
+		},
+	}),
+	columnHelper.accessor("delegator_count", {
+		header: "Delegators",
+		cell: ({ getValue }) => <span className={css(styles.monoText)}>{getValue()}</span>,
+	}),
+]
 
 function ValidatorEvents() {
 	const { data: events, isLoading, error } = useQuery({
@@ -278,7 +308,6 @@ function formatEventReason(eventType: string, reason: string | null, attributes?
 		if (eventType === "liveness") return `Liveness fault: ${reason}`
 		return reason
 	}
-	// Extract detail from attributes when reason is empty
 	if (attributes) {
 		const missed = attributes.missed_blocks_counter
 		const jailedUntil = attributes.jailed_until
@@ -292,12 +321,12 @@ function formatEventReason(eventType: string, reason: string | null, attributes?
 }
 
 export default function ValidatorsPage() {
-	const [page, setPage] = useState(0)
-	// Default sort: moniker descending (Z-A) - secondary to the fixed active-first grouping
-	const [sortBy, setSortBy] = useState<SortField>("moniker")
-	const [sortDir, setSortDir] = useState<SortDir>("desc")
 	const [search, setSearch] = useState("")
-	const limit = 20
+	const [pageSize, setPageSize] = useState(20)
+	const [sorting, setSorting] = useState<SortingState>([
+		{ id: "_activeRank", desc: false },
+		{ id: "moniker", desc: true },
+	])
 
 	const { data: stats, isLoading: statsLoading } = useQuery({
 		queryKey: ["validator-stats"],
@@ -312,7 +341,6 @@ export default function ValidatorsPage() {
 		staleTime: Infinity,
 	})
 
-	// Fetch all validators for client-side sorting (active-first grouping)
 	const { data: validatorsData, isLoading: validatorsLoading } = useQuery({
 		queryKey: ["validators-all", search],
 		queryFn: () =>
@@ -325,36 +353,16 @@ export default function ValidatorsPage() {
 		refetchInterval: 10_000,
 	})
 
-	// Sort validators: active first, then by user-selected secondary sort
-	// Signing stats (signing_percentage, blocks_missed) are now inline on validator objects
-	// via DB triggers on validator_block_signatures - no separate query needed.
-	const sortedValidators = useMemo(() => {
-		return sortValidators(validatorsData?.data, sortBy, sortDir)
-	}, [validatorsData, sortBy, sortDir])
+	const validators = useMemo(() => validatorsData?.data ?? [], [validatorsData])
 
-	// Paginate the sorted results
-	const paginatedValidators = useMemo(() => {
-		const start = page * limit
-		return sortedValidators.slice(start, start + limit)
-	}, [sortedValidators, page])
-
-	const totalPages = Math.ceil(sortedValidators.length / limit)
-
-	/** Toggles sort direction or sets a new sort field */
-	function handleSort(field: SortField) {
-		if (sortBy === field) {
-			setSortDir((d) => (d === "desc" ? "asc" : "desc"))
-		} else {
-			setSortBy(field)
-			setSortDir("desc")
-		}
-		setPage(0)
-	}
-
-	/** Renders a sort indicator arrow */
-	function sortIndicator(field: SortField) {
-		if (sortBy !== field) return null
-		return sortDir === "desc" ? " \u2193" : " \u2191"
+	/** Always preserve _activeRank as the primary sort column */
+	const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+		setSorting((prev) => {
+			const next = typeof updater === "function" ? updater(prev) : updater
+			// Strip _activeRank from user-driven changes, then prepend it
+			const withoutRank = next.filter((s) => s.id !== "_activeRank")
+			return [{ id: "_activeRank", desc: false }, ...withoutRank]
+		})
 	}
 
 	return (
@@ -434,10 +442,7 @@ export default function ValidatorsPage() {
 							type="text"
 							placeholder="Search by moniker or address..."
 							value={search}
-							onChange={(e) => {
-								setSearch(e.target.value)
-								setPage(0)
-							}}
+							onChange={(e) => setSearch(e.target.value)}
 							className={css(styles.searchInput)}
 						/>
 					</div>
@@ -447,146 +452,32 @@ export default function ValidatorsPage() {
 				<CardHeader>
 					<CardTitle>Validator Set</CardTitle>
 					<CardDescription>
-						{sortedValidators.length > 0
-							? `${sortedValidators.length} validators (active first, then by ${sortBy})`
+						{validators.length > 0
+							? `${validators.length} validators (active first)`
 							: "Loading..."}
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					{validatorsLoading ? (
-						<div className={css(styles.loadingContainer)}>
-							{Array.from({ length: 5 }).map((_, i) => (
-								<Skeleton key={i} className={css(styles.skeleton)} />
-							))}
-						</div>
-					) : !paginatedValidators.length ? (
-						<div className={css(styles.emptyState)}>
-							<Shield className={css(styles.emptyIcon)} />
-							<h3 className={css(styles.emptyTitle)}>No Validators</h3>
-							<p className={css(styles.emptyText)}>
-								No validators found matching your criteria.
-							</p>
-						</div>
-					) : (
-						<>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead className={css(styles.rankCol)}>#</TableHead>
-										<TableHead
-											className={css(styles.sortableHead)}
-											onClick={() => handleSort("moniker")}
-										>
-											Moniker{sortIndicator("moniker")}
-										</TableHead>
-										<TableHead>Operator Address</TableHead>
-										<TableHead
-											className={css(styles.sortableHead)}
-											onClick={() => handleSort("tokens")}
-										>
-											Voting Power{sortIndicator("tokens")}
-										</TableHead>
-										<TableHead
-											className={css(styles.sortableHead)}
-											onClick={() => handleSort("commission")}
-										>
-											Commission{sortIndicator("commission")}
-										</TableHead>
-										<TableHead
-											className={css(styles.sortableHead)}
-											onClick={() => handleSort("status")}
-										>
-											Status{sortIndicator("status")}
-										</TableHead>
-										<TableHead
-											className={css(styles.sortableHead)}
-											onClick={() => handleSort("uptime")}
-										>
-											Uptime{sortIndicator("uptime")}
-										</TableHead>
-										<TableHead
-											className={css(styles.sortableHead)}
-											onClick={() => handleSort("delegators")}
-										>
-											Delegators{sortIndicator("delegators")}
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{paginatedValidators.map((v, idx) => (
-										<TableRow key={v.operator_address}>
-											<TableCell className={css(styles.rankCell)}>
-												{page * limit + idx + 1}
-											</TableCell>
-											<TableCell>
-												<Link
-													to={`/validators/${v.operator_address}`}
-													className={css(styles.monikerLink)}
-												>
-													{v.moniker || "Unknown"}
-												</Link>
-											</TableCell>
-											<TableCell>
-												<Link
-													to={`/validators/${v.operator_address}`}
-													className={css(styles.addressLink)}
-												>
-													{formatAddress(v.operator_address, 8)}
-												</Link>
-											</TableCell>
-											<TableCell className={css(styles.monoText)}>
-												{v.voting_power_pct?.toFixed(2)}%
-											</TableCell>
-											<TableCell className={css(styles.monoText)}>
-												{formatCommission(v.commission_rate)}
-											</TableCell>
-											<TableCell>
-												{validatorStatusBadge(v.status, v.jailed)}
-											</TableCell>
-											<TableCell
-												className={css({
-													fontFamily: "mono",
-													fontSize: "sm",
-													color: getUptimeColor(v.signing_percentage),
-												})}
-											>
-												{v.signing_percentage != null
-													? `${v.signing_percentage.toFixed(1)}%`
-													: "-"}
-											</TableCell>
-											<TableCell className={css(styles.monoText)}>
-												{v.delegator_count}
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-
-							{totalPages > 1 && (
-								<div className={css(styles.pagination)}>
-									<Button
-										variant="outline"
-										size="sm"
-										disabled={page === 0}
-										onClick={() => setPage((p) => p - 1)}
-									>
-										Previous
-									</Button>
-									<span className={css(styles.pageInfo)}>
-										Page {page + 1} of {totalPages}
-									</span>
-									<Button
-										variant="outline"
-										size="sm"
-										disabled={page >= totalPages - 1}
-										onClick={() => setPage((p) => p + 1)}
-									>
-										Next
-									</Button>
-								</div>
-							)}
-						</>
-					)}
+					<DataTable
+						columns={validatorColumns}
+						data={validators}
+						sorting={sorting}
+						onSortingChange={handleSortingChange}
+						columnVisibility={{ _activeRank: false }}
+						pageSize={pageSize}
+						onPageSizeChange={setPageSize}
+						isLoading={validatorsLoading}
+						getRowId={(v) => v.operator_address}
+						emptyState={
+							<div className={css(styles.emptyState)}>
+								<Shield className={css(styles.emptyIcon)} />
+								<h3 className={css(styles.emptyTitle)}>No Validators</h3>
+								<p className={css(styles.emptyText)}>
+									No validators found matching your criteria.
+								</p>
+							</div>
+						}
+					/>
 				</CardContent>
 					</Card>
 				</TabsContent>
@@ -717,19 +608,6 @@ const styles = {
 		maxWidth: "md",
 		margin: "0 auto",
 	},
-	rankCol: {
-		width: "60px",
-	},
-	rankCell: {
-		fontFamily: "mono",
-		fontSize: "sm",
-		color: "fg.muted",
-	},
-	sortableHead: {
-		cursor: "pointer",
-		userSelect: "none",
-		_hover: { color: "accent.default" },
-	},
 	monikerLink: {
 		fontWeight: "semibold",
 		color: "accent.default",
@@ -743,21 +621,6 @@ const styles = {
 	monoText: {
 		fontFamily: "mono",
 		fontSize: "sm",
-	},
-	pagination: {
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: "4",
-		marginTop: "4",
-	},
-	pageInfo: {
-		fontSize: "sm",
-		color: "fg.muted",
-	},
-	monoSmall: {
-		fontFamily: "mono",
-		fontSize: "xs",
 	},
 	tabs: {
 		width: "full",
