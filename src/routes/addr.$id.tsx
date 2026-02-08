@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { ArrowLeft, Copy, CheckCircle, User, ArrowUpRight, ArrowDownLeft, Activity, FileCode, Wallet, AlertCircle, Coins } from 'lucide-react'
 import { type ColumnDef, createColumnHelper } from '@tanstack/react-table'
@@ -106,13 +106,13 @@ export default function AddressDetailPage() {
 		}
 	}
 
-	const isSender = (tx: EnhancedTransaction): boolean => {
+	const isSender = useCallback((tx: EnhancedTransaction): boolean => {
 		return tx.messages?.some(msg =>
 			msg.sender === params.id ||
 			(hexAddr && msg.sender === hexAddr) ||
 			(bech32Addr && msg.sender === bech32Addr)
 		) ?? false
-	}
+	}, [params.id, hexAddr, bech32Addr])
 
 	/** Column definitions for the transaction history table (depend on isSender closure) */
 	const txColumns = useMemo<ColumnDef<EnhancedTransaction, any>[]>(() => [
@@ -193,8 +193,7 @@ export default function AddressDetailPage() {
 				</span>
 			),
 		}),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- isSender depends on params.id, hexAddr, bech32Addr
-	], [params.id, hexAddr, bech32Addr])
+	], [isSender])
 
 	if (!mounted || (isValidAddr && statsLoading)) {
 		return (
