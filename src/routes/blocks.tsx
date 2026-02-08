@@ -2,40 +2,91 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { Blocks, Filter, X } from 'lucide-react'
+import { type ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api } from '@/lib/api'
-import { appConfig } from '@/config/app'
+import { DataTable } from '@/components/ui/data-table'
+import { api, type BlockRaw } from '@/lib/api'
 import { formatNumber, formatTimestamp, formatHash, formatTimeAgo } from '@/lib/utils'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Pagination } from '@/components/ui/pagination'
 import { css } from '@/styled-system/css'
 import { hstack, grid } from '@/styled-system/patterns'
 
+// -- Column definitions --
+
+const columnHelper = createColumnHelper<BlockRaw>()
+
+const blockColumns: ColumnDef<BlockRaw, any>[] = [
+	columnHelper.accessor('id', {
+		header: 'Height',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<Link
+				to={`/blocks/${row.original.id}`}
+				className={hstack({ gap: '2', fontWeight: 'medium', _hover: { color: 'accent.default' } })}
+			>
+				<Blocks className={css({ w: 'icon.sm', h: 'icon.sm' })} />
+				{formatNumber(row.original.id)}
+			</Link>
+		),
+	}),
+	columnHelper.display({
+		id: 'blockHash',
+		header: 'Block Hash',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<code className={css({ fontSize: 'xs', fontFamily: 'mono', color: 'fg.muted' })}>
+				{formatHash(row.original.data?.block_id?.hash || row.original.data?.blockId?.hash || '', 12)}
+			</code>
+		),
+	}),
+	columnHelper.display({
+		id: 'time',
+		header: 'Time',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<div>
+				<div className={css({ fontSize: 'sm' })}>{formatTimeAgo(row.original.data.block.header.time)}</div>
+				<div className={css({ fontSize: 'xs', color: 'fg.muted' })}>
+					{formatTimestamp(row.original.data.block.header.time)}
+				</div>
+			</div>
+		),
+	}),
+	columnHelper.display({
+		id: 'transactions',
+		header: 'Transactions',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<Badge variant="secondary">
+				{String('tx_count' in row.original ? row.original.tx_count : (row.original.data?.txs?.length || 0))} txs
+			</Badge>
+		),
+	}),
+]
+
 export default function BlocksPage() {
 	const [page, setPage] = useState(0)
+	const [pageSize, setPageSize] = useState(20)
 	const [showFilters, setShowFilters] = useState(false)
 	const [minTxCount, setMinTxCount] = useState<string>('')
 	const [fromDate, setFromDate] = useState<string>('')
 	const [toDate, setToDate] = useState<string>('')
-	const limit = appConfig.blocks.pageSize
 
 	const hasActiveFilters = minTxCount || fromDate || toDate
 
 	const { data, isLoading, error } = useQuery({
-		queryKey: ['blocks', page, minTxCount, fromDate, toDate],
+		queryKey: ['blocks', page, pageSize, minTxCount, fromDate, toDate],
 		queryFn: () =>
 			hasActiveFilters
-				? api.getBlocksPaginated(limit, page * limit, {
+				? api.getBlocksPaginated(pageSize, page * pageSize, {
 					minTxCount: minTxCount ? parseInt(minTxCount, 10) : undefined,
 					fromDate: fromDate || undefined,
 					toDate: toDate || undefined,
 				})
-				: api.getBlocks(limit, page * limit),
+				: api.getBlocks(pageSize, page * pageSize),
 	})
 
 	const clearFilters = () => {
@@ -126,75 +177,25 @@ export default function BlocksPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Height</TableHead>
-								<TableHead>Block Hash</TableHead>
-								<TableHead>Time</TableHead>
-								<TableHead>Transactions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{isLoading ? (
-								Array.from({ length: 10 }).map((_, i) => (
-									<TableRow key={i}>
-										<TableCell colSpan={4}>
-											<Skeleton className={css({ h: '12', w: 'full' })} />
-										</TableCell>
-									</TableRow>
-								))
-							) : error ? (
-								<TableRow>
-									<TableCell colSpan={4} className={css({ textAlign: 'center', color: 'fg.muted' })}>
-										Error loading blocks
-									</TableCell>
-								</TableRow>
-							) : data?.data.length === 0 ? (
-								<TableRow>
-									<TableCell colSpan={4} className={css({ textAlign: 'center', color: 'fg.muted' })}>
-										No blocks found
-									</TableCell>
-								</TableRow>
-							) : (
-								data?.data.map((block) => (
-									<TableRow key={block.id}>
-										<TableCell>
-											<Link to={`/blocks/${block.id}`} className={hstack({ gap: '2', fontWeight: 'medium', _hover: { color: 'accent.default' } })}>
-												<Blocks className={css({ w: 'icon.sm', h: 'icon.sm' })} />
-												{formatNumber(block.id)}
-											</Link>
-										</TableCell>
-										<TableCell>
-											<code className={css({ fontSize: 'xs', fontFamily: 'mono', color: 'fg.muted' })}>
-												{formatHash(block.data?.block_id?.hash || block.data?.blockId?.hash || '', 12)}
-											</code>
-										</TableCell>
-										<TableCell>
-											<div>
-												<div className={css({ fontSize: 'sm' })}>{formatTimeAgo(block.data.block.header.time)}</div>
-												<div className={css({ fontSize: 'xs', color: 'fg.muted' })}>
-													{formatTimestamp(block.data.block.header.time)}
-												</div>
-											</div>
-										</TableCell>
-										<TableCell>
-											<Badge variant="secondary">
-												{String('tx_count' in block ? block.tx_count : (block.data?.txs?.length || 0))} txs
-											</Badge>
-										</TableCell>
-									</TableRow>
-								))
-							)}
-						</TableBody>
-					</Table>
-
-					{data && data.pagination.total > 0 && (
-						<Pagination
-							currentPage={page}
-							totalPages={Math.ceil(data.pagination.total / limit)}
-							onPageChange={setPage}
+					{error ? (
+						<div className={css({ textAlign: 'center', py: '12', color: 'fg.muted' })}>
+							Error loading blocks
+						</div>
+					) : (
+						<DataTable
+							columns={blockColumns}
+							data={data?.data ?? []}
 							isLoading={isLoading}
+							pageSize={pageSize}
+							onPageSizeChange={(s) => {
+								setPageSize(s)
+								setPage(0)
+							}}
+							totalRows={data?.pagination.total}
+							currentPage={page}
+							onPageChange={setPage}
+							getRowId={(block) => String(block.id)}
+							emptyState="No blocks found"
 						/>
 					)}
 				</CardContent>

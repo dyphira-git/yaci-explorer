@@ -1,15 +1,82 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FileCode2, CheckCircle, XCircle } from 'lucide-react'
+import { type ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { EvmNav } from '@/components/common/evm-nav'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AddressChip } from '@/components/AddressChip'
+import { DataTable } from '@/components/ui/data-table'
 import { api } from '@/lib/api'
-import { Skeleton } from '@/components/ui/skeleton'
 import { css } from '@/styled-system/css'
+
+// -- Contract type from API response --
+
+interface EvmContract {
+	address: string
+	creator: string | null
+	creation_tx: string | null
+	bytecode_hash: string | null
+	name: string | null
+	is_verified: boolean
+	creation_height: number
+}
+
+// -- Column definitions --
+
+const columnHelper = createColumnHelper<EvmContract>()
+
+const contractColumns: ColumnDef<EvmContract, any>[] = [
+	columnHelper.accessor('address', {
+		header: 'Address',
+		enableSorting: false,
+		cell: ({ getValue }) => <AddressChip address={getValue()} />,
+	}),
+	columnHelper.accessor('name', {
+		header: 'Name',
+		enableSorting: false,
+		cell: ({ getValue }) =>
+			getValue() || <span className={css({ color: 'fg.muted' })}>Unknown</span>,
+	}),
+	columnHelper.accessor('creator', {
+		header: 'Creator',
+		enableSorting: false,
+		cell: ({ getValue }) => {
+			const creator = getValue()
+			return creator ? (
+				<AddressChip address={creator} />
+			) : (
+				<span className={css({ color: 'fg.muted' })}>-</span>
+			)
+		},
+	}),
+	columnHelper.accessor('is_verified', {
+		header: 'Verified',
+		enableSorting: false,
+		cell: ({ getValue }) =>
+			getValue() ? (
+				<Badge variant="success">
+					<CheckCircle className={css({ h: '3', w: '3', mr: '1' })} />
+					Verified
+				</Badge>
+			) : (
+				<Badge variant="secondary">
+					<XCircle className={css({ h: '3', w: '3', mr: '1' })} />
+					Unverified
+				</Badge>
+			),
+	}),
+	columnHelper.accessor('creation_height', {
+		header: 'Created',
+		enableSorting: false,
+		cell: ({ getValue }) => (
+			<div className={css({ fontSize: 'sm', fontFamily: 'mono' })}>
+				Block #{getValue().toLocaleString()}
+			</div>
+		),
+	}),
+]
 
 export default function EvmContractsPage() {
 	const [page, setPage] = useState(0)
@@ -41,18 +108,12 @@ export default function EvmContractsPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					{isLoading ? (
-						<div className={css(styles.loadingContainer)}>
-							{Array.from({ length: 5 }).map((_, i) => (
-								<Skeleton key={i} className={css(styles.skeleton)} />
-							))}
-						</div>
-					) : error ? (
+					{error ? (
 						<div className={css(styles.emptyState)}>
 							<FileCode2 className={css(styles.emptyIcon)} />
 							<p>Error loading contracts</p>
 						</div>
-					) : !hasData ? (
+					) : !isLoading && !hasData ? (
 						<div className={css(styles.emptyState)}>
 							<FileCode2 className={css(styles.emptyIcon)} />
 							<h3 className={css(styles.emptyTitle)}>No Contracts Yet</h3>
@@ -62,56 +123,14 @@ export default function EvmContractsPage() {
 							</p>
 						</div>
 					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Address</TableHead>
-									<TableHead>Name</TableHead>
-									<TableHead>Creator</TableHead>
-									<TableHead>Verified</TableHead>
-									<TableHead>Created</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{data.map((contract) => (
-									<TableRow key={contract.address}>
-										<TableCell>
-										<AddressChip address={contract.address} />
-									</TableCell>
-										<TableCell>
-											{contract.name || (
-												<span className={css(styles.mutedText)}>Unknown</span>
-											)}
-										</TableCell>
-										<TableCell>
-											{contract.creator ? (
-												<AddressChip address={contract.creator} />
-											) : (
-												<span className={css(styles.mutedText)}>-</span>
-											)}
-										</TableCell>
-										<TableCell>
-											{contract.is_verified ? (
-												<Badge variant="success">
-													<CheckCircle className={css(styles.badgeIcon)} />
-													Verified
-												</Badge>
-											) : (
-												<Badge variant="secondary">
-													<XCircle className={css(styles.badgeIcon)} />
-													Unverified
-												</Badge>
-											)}
-										</TableCell>
-										<TableCell>
-											<div className={css(styles.blockHeight)}>
-												Block #{contract.creation_height.toLocaleString()}
-											</div>
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
+						<DataTable
+							columns={contractColumns}
+							data={data ?? []}
+							isLoading={isLoading}
+							hidePagination
+							pageSize={data?.length || limit}
+							getRowId={(contract) => contract.address}
+						/>
 					)}
 
 					{hasData && data.length >= limit && (
@@ -161,15 +180,6 @@ const styles = {
 		color: 'fg.muted',
 		marginTop: '1',
 	},
-	loadingContainer: {
-		display: 'flex',
-		flexDirection: 'column',
-		gap: '3',
-	},
-	skeleton: {
-		height: '12',
-		width: 'full',
-	},
 	emptyState: {
 		textAlign: 'center',
 		py: '12',
@@ -191,39 +201,6 @@ const styles = {
 	emptyText: {
 		maxWidth: 'md',
 		margin: '0 auto',
-	},
-	addressLink: {
-		display: 'flex',
-		alignItems: 'center',
-		gap: '2',
-		fontFamily: 'mono',
-		fontSize: 'sm',
-		_hover: {
-			color: 'colorPalette',
-		},
-	},
-	contractIcon: {
-		height: '4',
-		width: '4',
-	},
-	mutedText: {
-		color: 'fg.muted',
-	},
-	creatorLink: {
-		fontFamily: 'mono',
-		fontSize: 'xs',
-		_hover: {
-			color: 'colorPalette',
-		},
-	},
-	badgeIcon: {
-		height: '3',
-		width: '3',
-		marginRight: '1',
-	},
-	blockHeight: {
-		fontSize: 'sm',
-		fontFamily: 'mono',
 	},
 	pagination: {
 		display: 'flex',

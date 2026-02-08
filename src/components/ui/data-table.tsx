@@ -1,0 +1,339 @@
+import type { ReactNode } from "react"
+import {
+	type ColumnDef,
+	type SortingState,
+	type VisibilityState,
+	type OnChangeFn,
+	flexRender,
+	getCoreRowModel,
+	getSortedRowModel,
+	getPaginationRowModel,
+	useReactTable,
+} from "@tanstack/react-table"
+import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react"
+import { css } from "@/styled-system/css"
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
+
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200]
+
+interface DataTableProps<T> {
+	/** TanStack Table column definitions */
+	columns: ColumnDef<T, any>[]
+	/** Row data array (all data for client-side, or current page for server-side) */
+	data: T[]
+	/** Controlled sorting state */
+	sorting?: SortingState
+	/** Sorting state change handler */
+	onSortingChange?: OnChangeFn<SortingState>
+	/** Rows per page */
+	pageSize?: number
+	/** Page size change handler */
+	onPageSizeChange?: (size: number) => void
+	/** Available page size options */
+	pageSizeOptions?: number[]
+	/** Show skeleton rows while loading */
+	isLoading?: boolean
+	/** Custom empty state content */
+	emptyState?: ReactNode
+	/** Max height for scrollable body (default: "calc(100vh - 320px)") */
+	maxHeight?: string
+	/** Stable row key accessor */
+	getRowId?: (row: T) => string
+	/** Column visibility map (e.g. { _activeRank: false } to hide sort-only columns) */
+	columnVisibility?: VisibilityState
+	/**
+	 * Server-side pagination: total number of rows across all pages.
+	 * When set, DataTable uses external pagination instead of client-side.
+	 */
+	totalRows?: number
+	/** Server-side pagination: current 0-based page index */
+	currentPage?: number
+	/** Server-side pagination: page change callback (0-based index) */
+	onPageChange?: (page: number) => void
+	/** Hide the pagination footer entirely */
+	hidePagination?: boolean
+}
+
+/**
+ * Reusable data table component wrapping TanStack Table with the existing
+ * Table/TableHeader/TableBody/TableRow/TableHead/TableCell UI components.
+ *
+ * Supports two pagination modes:
+ * - **Client-side** (default): pass all data, DataTable paginates internally
+ * - **Server-side**: pass `totalRows`, `currentPage`, `onPageChange` and
+ *   provide only the current page's data in `data`
+ *
+ * @param columns - TanStack Table column definitions
+ * @param data - Row data
+ * @param sorting - Controlled sorting state
+ * @param onSortingChange - Sorting change handler
+ * @param pageSize - Current page size
+ * @param onPageSizeChange - Page size change callback
+ * @param isLoading - Show skeleton placeholder rows
+ * @param emptyState - Custom empty state JSX
+ * @param maxHeight - Scrollable container max height
+ * @param getRowId - Stable row key function
+ * @param columnVisibility - Map of column IDs to visibility
+ * @param totalRows - Server-side total row count
+ * @param currentPage - Server-side current page (0-based)
+ * @param onPageChange - Server-side page change handler
+ * @param hidePagination - Hide the footer entirely
+ */
+export function DataTable<T>({
+	columns,
+	data,
+	sorting,
+	onSortingChange,
+	pageSize = 20,
+	onPageSizeChange,
+	pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+	isLoading = false,
+	emptyState,
+	maxHeight = "calc(100vh - 320px)",
+	getRowId,
+	columnVisibility,
+	totalRows: externalTotalRows,
+	currentPage: externalCurrentPage,
+	onPageChange,
+	hidePagination = false,
+}: DataTableProps<T>) {
+	const isServerSide = externalTotalRows !== undefined
+
+	const table = useReactTable({
+		data,
+		columns,
+		state: {
+			sorting,
+			// For server-side, don't paginate internally - show all provided rows
+			pagination: isServerSide
+				? { pageIndex: 0, pageSize: data.length || pageSize }
+				: { pageIndex: 0, pageSize },
+			columnVisibility,
+		},
+		onSortingChange,
+		getCoreRowModel: getCoreRowModel(),
+		getSortedRowModel: getSortedRowModel(),
+		...(isServerSide ? {} : { getPaginationRowModel: getPaginationRowModel() }),
+		getRowId: getRowId as ((row: T, index: number, parent?: { id: string }) => string) | undefined,
+	})
+
+	const visibleColumns = table.getVisibleFlatColumns()
+
+	// Pagination values differ between client-side and server-side
+	const totalRows = isServerSide ? externalTotalRows : data.length
+	const pageCount = Math.ceil(totalRows / pageSize)
+	const currentPage = isServerSide ? (externalCurrentPage ?? 0) : table.getState().pagination.pageIndex
+	const canPrevious = isServerSide ? currentPage > 0 : table.getCanPreviousPage()
+	const canNext = isServerSide ? currentPage < pageCount - 1 : table.getCanNextPage()
+
+	const handlePrevious = () => {
+		if (isServerSide) {
+			onPageChange?.(currentPage - 1)
+		} else {
+			table.previousPage()
+		}
+	}
+
+	const handleNext = () => {
+		if (isServerSide) {
+			onPageChange?.(currentPage + 1)
+		} else {
+			table.nextPage()
+		}
+	}
+
+	return (
+		<div className={css({ display: "flex", flexDirection: "column" })}>
+			{/* Scrollable table container */}
+			<div
+				className={css({
+					overflow: "auto",
+					maxHeight,
+					position: "relative",
+				})}
+			>
+				<Table>
+					<TableHeader
+						className={css({
+							position: "sticky",
+							top: 0,
+							zIndex: 10,
+							bg: "bg.default",
+						})}
+					>
+						{table.getHeaderGroups().map((headerGroup) => (
+							<TableRow key={headerGroup.id}>
+								{headerGroup.headers.map((header) => {
+									const canSort = header.column.getCanSort()
+									const sorted = header.column.getIsSorted()
+									return (
+										<TableHead
+											key={header.id}
+											onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+											className={css({
+												whiteSpace: "nowrap",
+												...(canSort
+													? {
+															cursor: "pointer",
+															userSelect: "none",
+															_hover: { color: "accent.default" },
+														}
+													: {}),
+											})}
+											style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+										>
+											<span
+												className={css({
+													display: "inline-flex",
+													alignItems: "center",
+													gap: "1",
+												})}
+											>
+												{header.isPlaceholder
+													? null
+													: flexRender(header.column.columnDef.header, header.getContext())}
+												{sorted === "asc" && (
+													<ArrowUp className={css({ h: "3.5", w: "3.5" })} />
+												)}
+												{sorted === "desc" && (
+													<ArrowDown className={css({ h: "3.5", w: "3.5" })} />
+												)}
+											</span>
+										</TableHead>
+									)
+								})}
+							</TableRow>
+						))}
+					</TableHeader>
+					<TableBody>
+						{isLoading ? (
+							Array.from({ length: Math.min(pageSize, 10) }).map((_, i) => (
+								<TableRow key={`skeleton-${i}`}>
+									{visibleColumns.map((col) => (
+										<TableCell key={col.id}>
+											<Skeleton className={css({ h: "5", w: "full" })} />
+										</TableCell>
+									))}
+								</TableRow>
+							))
+						) : table.getRowModel().rows.length === 0 ? (
+							<TableRow>
+								<TableCell
+									colSpan={visibleColumns.length}
+									className={css({ textAlign: "center", py: "12", color: "fg.muted" })}
+								>
+									{emptyState ?? "No results."}
+								</TableCell>
+							</TableRow>
+						) : (
+							table.getRowModel().rows.map((row) => (
+								<TableRow key={row.id}>
+									{row.getVisibleCells().map((cell) => (
+										<TableCell key={cell.id}>
+											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+										</TableCell>
+									))}
+								</TableRow>
+							))
+						)}
+					</TableBody>
+				</Table>
+			</div>
+
+			{/* Footer: pagination + page size */}
+			{!hidePagination && (
+				<div
+					className={css({
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "space-between",
+						gap: "4",
+						pt: "4",
+						flexWrap: "wrap",
+					})}
+				>
+					{/* Page size selector */}
+					<div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
+						<span className={css({ fontSize: "sm", color: "fg.muted", whiteSpace: "nowrap" })}>
+							Rows per page
+						</span>
+						<Select
+							value={String(pageSize)}
+							onValueChange={(val) => {
+								const newSize = Number(val)
+								onPageSizeChange?.(newSize)
+								if (!isServerSide) {
+									table.setPageSize(newSize)
+									table.setPageIndex(0)
+								}
+								// For server-side, the parent handles re-fetching with new page size
+								if (isServerSide) {
+									onPageChange?.(0)
+								}
+							}}
+						>
+							<SelectTrigger className={css({ w: "18", h: "9", fontSize: "sm" })}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{pageSizeOptions.map((size) => (
+									<SelectItem key={size} value={String(size)}>
+										{size}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						<span className={css({ fontSize: "sm", color: "fg.muted" })}>
+							{totalRows.toLocaleString()} total
+						</span>
+					</div>
+
+					{/* Pagination controls */}
+					{pageCount > 1 && (
+						<div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={!canPrevious || isLoading}
+								onClick={handlePrevious}
+								className={css({ gap: "1" })}
+							>
+								<ChevronLeft className={css({ h: "4", w: "4" })} />
+								Previous
+							</Button>
+							<span className={css({ fontSize: "sm", color: "fg.muted", whiteSpace: "nowrap" })}>
+								Page {currentPage + 1} of {pageCount.toLocaleString()}
+							</span>
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={!canNext || isLoading}
+								onClick={handleNext}
+								className={css({ gap: "1" })}
+							>
+								Next
+								<ChevronRight className={css({ h: "4", w: "4" })} />
+							</Button>
+						</div>
+					)}
+				</div>
+			)}
+		</div>
+	)
+}

@@ -1,1 +1,21 @@
 @layer reset, base, tokens, recipes, utilities;
+
+/* Subtle scrollbar styling across all scrollable containers */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--colors-border-default) transparent;
+}
+
+*::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: var(--colors-border-default);
+	border-radius: 3px;
+}

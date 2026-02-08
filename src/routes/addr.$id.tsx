@@ -1,34 +1,29 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { ArrowLeft, Copy, CheckCircle, User, ArrowUpRight, ArrowDownLeft, Activity, FileCode, Wallet, AlertCircle, Coins } from 'lucide-react'
+import { type ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { DataTable } from '@/components/ui/data-table'
 import { api, getAccountBalances, getEvmBalance, type EnhancedTransaction, type TokenBalance } from '@/lib/api'
 import { formatNumber, formatTimeAgo, formatHash, cn, getAddressType, getAlternateAddress, isValidAddress } from '@/lib/utils'
 import { formatDenomAmount, getDenomMetadata } from '@/lib/denom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ContractDetails } from '@/components/ContractDetails'
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table'
-import { Pagination } from '@/components/ui/pagination'
 import { css } from '@/styled-system/css'
 import { grid, hstack, center, statRow } from '@/styled-system/patterns'
+
+const columnHelper = createColumnHelper<EnhancedTransaction>()
 
 export default function AddressDetailPage() {
 	const [mounted, setMounted] = useState(false)
 	const [copiedHex, setCopiedHex] = useState(false)
 	const [copiedBech32, setCopiedBech32] = useState(false)
 	const [page, setPage] = useState(0)
+	const [pageSize, setPageSize] = useState(20)
 	const params = useParams()
-	const pageSize = 20
 
 	const isValidAddr = params.id ? isValidAddress(params.id) : false
 	const entryFormat = params.id ? getAddressType(params.id) : null
@@ -64,7 +59,7 @@ export default function AddressDetailPage() {
 	})
 
 	const { data: transactions, isLoading: txLoading } = useQuery({
-		queryKey: ['address-transactions', primaryAddr, altAddr, page],
+		queryKey: ['address-transactions', primaryAddr, altAddr, page, pageSize],
 		queryFn: async () => {
 			if (!primaryAddr) return { data: [], pagination: { total: 0, limit: pageSize, offset: 0, has_next: false, has_prev: false } }
 			return await api.getTransactionsByAddress(primaryAddr, pageSize, page * pageSize, altAddr || undefined)
@@ -111,13 +106,94 @@ export default function AddressDetailPage() {
 		}
 	}
 
-	const isSender = (tx: EnhancedTransaction): boolean => {
+	const isSender = useCallback((tx: EnhancedTransaction): boolean => {
 		return tx.messages?.some(msg =>
 			msg.sender === params.id ||
 			(hexAddr && msg.sender === hexAddr) ||
 			(bech32Addr && msg.sender === bech32Addr)
 		) ?? false
-	}
+	}, [params.id, hexAddr, bech32Addr])
+
+	/** Column definitions for the transaction history table (depend on isSender closure) */
+	const txColumns = useMemo<ColumnDef<EnhancedTransaction, any>[]>(() => [
+		columnHelper.display({
+			id: 'role',
+			header: 'Role',
+			enableSorting: false,
+			cell: ({ row }) => {
+				const isOut = isSender(row.original)
+				return (
+					<Badge
+						variant={isOut ? 'default' : 'secondary'}
+						className={cn(
+							css({ fontWeight: 'medium' }),
+							isOut
+								? css({ bg: 'rgba(124, 207, 255, 0.2)', color: '#7CCFFF', border: '1px solid rgba(124, 207, 255, 0.3)' })
+								: css({ bg: 'bg.accentMuted', color: 'fg.accent', border: '1px solid', borderColor: 'border.accent' })
+						)}
+					>
+						{isOut ? (
+							<><ArrowUpRight className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />Sender</>
+						) : (
+							<><ArrowDownLeft className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />Related</>
+						)}
+					</Badge>
+				)
+			},
+		}),
+		columnHelper.accessor('id', {
+			header: 'Tx Hash',
+			enableSorting: false,
+			cell: ({ row }) => (
+				<Link to={`/tx/${row.original.id}`} className={css({ fontFamily: 'mono', fontSize: 'sm', color: 'chart.secondary', _hover: { color: 'accent.default' } })}>
+					{formatHash(row.original.id, 8)}
+				</Link>
+			),
+		}),
+		columnHelper.accessor('height', {
+			header: 'Block',
+			enableSorting: false,
+			cell: ({ row }) =>
+				row.original.height ? (
+					<Link to={`/blocks/${row.original.height}`} className={css({ color: 'chart.secondary', _hover: { color: 'accent.default' } })}>
+						{formatNumber(row.original.height)}
+					</Link>
+				) : (
+					<span className={css({ color: 'fg.muted' })}>-</span>
+				),
+		}),
+		columnHelper.display({
+			id: 'messages',
+			header: 'Messages',
+			enableSorting: false,
+			cell: ({ row }) => (
+				<Badge variant="outline">{row.original.messages?.length || 0}</Badge>
+			),
+		}),
+		columnHelper.display({
+			id: 'status',
+			header: 'Status',
+			enableSorting: false,
+			cell: ({ row }) => {
+				const isSuccess = !row.original.error
+				return (
+					<Badge variant={isSuccess ? 'success' : 'destructive'}>
+						{isSuccess ? <><CheckCircle className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />Success</> : 'Failed'}
+					</Badge>
+				)
+			},
+		}),
+		columnHelper.display({
+			id: 'time',
+			header: 'Time',
+			enableSorting: false,
+			cell: ({ row }) => (
+				<span className={css({ fontSize: 'sm', color: 'fg.muted' })}>
+					{row.original.timestamp ? formatTimeAgo(row.original.timestamp) : 'Unavailable'}
+				</span>
+			),
+		}),
+	], [isSender])
 
 	if (!mounted || (isValidAddr && statsLoading)) {
 		return (
@@ -316,96 +392,26 @@ export default function AddressDetailPage() {
 					<CardTitle>Transaction History</CardTitle>
 				</CardHeader>
 				<CardContent>
-					{txLoading ? (
-						<div className={css({ display: 'flex', flexDirection: 'column', gap: '3', w: 'full' })}>
-							<Skeleton className={css({ h: '12', w: 'full' })} />
-							<Skeleton className={css({ h: '12', w: 'full' })} />
-							<Skeleton className={css({ h: '12', w: 'full' })} />
-						</div>
-					) : transactions && transactions.data.length > 0 ? (
-						<>
-							<div className={css({ borderRadius: 'md', border: '1px solid', borderColor: 'border.default', overflowX: 'auto' })}>
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>Role</TableHead>
-											<TableHead>Tx Hash</TableHead>
-											<TableHead>Block</TableHead>
-											<TableHead>Messages</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead>Time</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{transactions.data.map((tx) => {
-											const isOut = isSender(tx)
-											const isSuccess = !tx.error
-											return (
-												<TableRow key={tx.id}>
-													<TableCell>
-														<Badge
-															variant={isOut ? 'default' : 'secondary'}
-															className={cn(
-																css({ fontWeight: 'medium' }),
-																isOut
-																	? css({ bg: 'rgba(124, 207, 255, 0.2)', color: '#7CCFFF', border: '1px solid rgba(124, 207, 255, 0.3)' })
-																	: css({ bg: 'bg.accentMuted', color: 'fg.accent', border: '1px solid', borderColor: 'border.accent' })
-															)}
-														>
-															{isOut ? (
-																<><ArrowUpRight className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />Sender</>
-															) : (
-																<><ArrowDownLeft className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />Related</>
-															)}
-														</Badge>
-													</TableCell>
-													<TableCell>
-														<Link to={`/tx/${tx.id}`} className={css({ fontFamily: 'mono', fontSize: 'sm', color: 'chart.secondary', _hover: { color: 'accent.default' } })}>
-															{formatHash(tx.id, 8)}
-														</Link>
-													</TableCell>
-													<TableCell>
-														{tx.height ? (
-															<Link to={`/blocks/${tx.height}`} className={css({ color: 'chart.secondary', _hover: { color: 'accent.default' } })}>
-																{formatNumber(tx.height)}
-															</Link>
-														) : (
-															<span className={css({ color: 'fg.muted' })}>-</span>
-														)}
-													</TableCell>
-													<TableCell>
-														<Badge variant="outline">{tx.messages?.length || 0}</Badge>
-													</TableCell>
-													<TableCell>
-														<Badge variant={isSuccess ? 'success' : 'destructive'}>
-															{isSuccess ? <><CheckCircle className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />Success</> : 'Failed'}
-														</Badge>
-													</TableCell>
-													<TableCell className={css({ fontSize: 'sm', color: 'fg.muted' })}>
-														{tx.timestamp ? formatTimeAgo(tx.timestamp) : 'Unavailable'}
-													</TableCell>
-												</TableRow>
-											)
-										})}
-									</TableBody>
-								</Table>
+					<DataTable
+						columns={txColumns}
+						data={transactions?.data ?? []}
+						isLoading={txLoading}
+						totalRows={transactions?.pagination.total}
+						currentPage={page}
+						onPageChange={setPage}
+						pageSize={pageSize}
+						onPageSizeChange={(s) => {
+							setPageSize(s)
+							setPage(0)
+						}}
+						getRowId={(tx) => tx.id}
+						emptyState={
+							<div className={center({ flexDir: 'column', py: '12' })}>
+								<Activity className={css({ w: 'icon.xl', h: 'icon.xl', color: 'fg.muted', mb: '4' })} />
+								<p className={css({ color: 'fg.muted' })}>No transactions found for this address</p>
 							</div>
-
-							{transactions.pagination.total > pageSize && (
-								<Pagination
-									currentPage={page}
-									totalPages={Math.ceil(transactions.pagination.total / pageSize)}
-									onPageChange={setPage}
-									isLoading={txLoading}
-								/>
-							)}
-						</>
-					) : (
-						<div className={center({ flexDir: 'column', py: '12' })}>
-							<Activity className={css({ w: 'icon.xl', h: 'icon.xl', color: 'fg.muted', mb: '4' })} />
-							<p className={css({ color: 'fg.muted' })}>No transactions found for this address</p>
-						</div>
-					)}
+						}
+					/>
 				</CardContent>
 			</Card>
 		</div>

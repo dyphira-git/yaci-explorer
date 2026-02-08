@@ -2,24 +2,138 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { Activity, Filter, Check, X } from 'lucide-react'
+import { type ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api } from '@/lib/api'
-import { appConfig } from '@/config/app'
+import { DataTable } from '@/components/ui/data-table'
+import { api, type Transaction } from '@/lib/api'
 import { formatHash, formatTimeAgo, getTransactionStatus, getMessageTypeLabel, isEVMTransaction, formatNativeFee, getMessageActionSummary } from '@/lib/utils'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import { Pagination } from '@/components/ui/pagination'
 import { css } from '@/styled-system/css'
+
+// -- Column definitions --
+
+const columnHelper = createColumnHelper<Transaction>()
+
+const txColumns: ColumnDef<Transaction, any>[] = [
+	columnHelper.accessor('id', {
+		header: 'Transaction Hash',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<Link
+				to={`/tx/${row.original.id}`}
+				className={css(styles.txLink)}
+			>
+				<Activity className={css(styles.activityIcon)} />
+				<code className={css(styles.txHashCode)}>{formatHash(row.original.id, 10)}</code>
+			</Link>
+		),
+	}),
+	columnHelper.display({
+		id: 'type',
+		header: 'Type',
+		enableSorting: false,
+		cell: ({ row }) => {
+			const tx = row.original
+			const isEVM = isEVMTransaction(tx.messages)
+			return (
+				<div>
+					<div className={css(styles.typeCell)}>
+						{isEVM && (
+							<Badge variant="outline" className={css(styles.evmBadge)}>
+								EVM
+							</Badge>
+						)}
+						<span className={css(styles.typeText)}>
+							{tx.messages.length > 0
+								? getMessageTypeLabel(tx.messages[0].type || '')
+								: 'Unknown'}
+						</span>
+						{tx.messages.length > 1 && (
+							<Badge variant="secondary" className={css(styles.countBadge)}>
+								+{tx.messages.length - 1}
+							</Badge>
+						)}
+					</div>
+					{tx.messages.length > 0 && tx.messages[0].data && (
+						<div className={css(styles.actionSummary)}>
+							{getMessageActionSummary(tx.messages[0] as { type: string; data?: Record<string, unknown> })}
+						</div>
+					)}
+				</div>
+			)
+		},
+	}),
+	columnHelper.accessor('height', {
+		header: 'Block',
+		enableSorting: false,
+		cell: ({ row }) => {
+			const height = row.original.height
+			return height ? (
+				<Link
+					to={`/blocks/${height}`}
+					className={css(styles.blockLink)}
+				>
+					{height}
+				</Link>
+			) : (
+				<span className={css(styles.unavailableText)}>-</span>
+			)
+		},
+	}),
+	columnHelper.accessor('timestamp', {
+		header: 'Time',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<div className={css(styles.timeText)}>
+				{row.original.timestamp ? formatTimeAgo(row.original.timestamp) : 'Unavailable'}
+			</div>
+		),
+	}),
+	columnHelper.display({
+		id: 'status',
+		header: 'Status',
+		enableSorting: false,
+		cell: ({ row }) => {
+			const tx = row.original
+			const status = getTransactionStatus(tx.error)
+			return (
+				<Badge
+					variant={tx.error ? 'destructive' : 'success'}
+					className={css(styles.statusBadge)}
+				>
+					{tx.error ? (
+						<X className={css(styles.statusIcon)} />
+					) : (
+						<Check className={css(styles.statusIcon)} />
+					)}
+					{status.label}
+				</Badge>
+			)
+		},
+	}),
+	columnHelper.display({
+		id: 'fee',
+		header: 'Fee',
+		enableSorting: false,
+		cell: ({ row }) => (
+			<div className={css(styles.feeText)}>
+				{row.original.fee?.amount?.[0]
+					? formatNativeFee(row.original.fee.amount[0].amount, row.original.fee.amount[0].denom)
+					: '-'}
+			</div>
+		),
+	}),
+]
 
 export default function TransactionsPage() {
 	const [page, setPage] = useState(0)
+	const [pageSize, setPageSize] = useState(20)
 	const [filterOpen, setFilterOpen] = useState(false)
 
 	// Filter state
@@ -30,8 +144,6 @@ export default function TransactionsPage() {
 	const [blockRangeMax, setBlockRangeMax] = useState('')
 	const [timeRangeMin, setTimeRangeMin] = useState('')
 	const [timeRangeMax, setTimeRangeMax] = useState('')
-
-	const limit = appConfig.transactions.pageSize
 
 	// Fetch distinct message types dynamically
 	const { data: messageTypes = [] } = useQuery({
@@ -89,8 +201,8 @@ export default function TransactionsPage() {
 	}
 
 	const { data, isLoading, error } = useQuery({
-		queryKey: ['transactions', page, Array.from(statusFilters), Array.from(messageTypeFilters), blockFilter, blockRangeMin, blockRangeMax, timeRangeMin, timeRangeMax],
-		queryFn: () => api.getTransactions(limit, page * limit, buildFilters()),
+		queryKey: ['transactions', page, pageSize, Array.from(statusFilters), Array.from(messageTypeFilters), blockFilter, blockRangeMin, blockRangeMax, timeRangeMin, timeRangeMax],
+		queryFn: () => api.getTransactions(pageSize, page * pageSize, buildFilters()),
 	})
 
 	const handleClearFilters = () => {
@@ -317,128 +429,27 @@ export default function TransactionsPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Transaction Hash</TableHead>
-								<TableHead>Type</TableHead>
-								<TableHead>Block</TableHead>
-								<TableHead>Time</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead>Fee</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{isLoading ? (
-								Array.from({ length: 10 }).map((_, i) => (
-									<TableRow key={i}>
-										<TableCell colSpan={6}>
-											<Skeleton className={css(styles.skeletonRow)} />
-										</TableCell>
-									</TableRow>
-								))
-							) : error ? (
-								<TableRow>
-									<TableCell colSpan={6} className={css(styles.emptyCell)}>
-										Error loading transactions
-									</TableCell>
-								</TableRow>
-							) : data?.data.length === 0 ? (
-								<TableRow>
-									<TableCell colSpan={6} className={css(styles.emptyCellWithPadding)}>
-										No transactions found matching your filters
-									</TableCell>
-								</TableRow>
-							) : (
-								data?.data.map((tx) => {
-									const status = getTransactionStatus(tx.error)
-									const isEVM = isEVMTransaction(tx.messages)
-
-									return (
-										<TableRow key={tx.id} className={css(styles.tableRow)}>
-											<TableCell>
-												<Link
-													to={`/tx/${tx.id}`}
-													className={css(styles.txLink)}
-												>
-													<Activity className={css(styles.activityIcon)} />
-													<code className={css(styles.txHashCode)}>{formatHash(tx.id, 10)}</code>
-												</Link>
-											</TableCell>
-											<TableCell>
-												<div className={css(styles.typeCell)}>
-													{isEVM && (
-														<Badge variant="outline" className={css(styles.evmBadge)}>
-															EVM
-														</Badge>
-													)}
-													<span className={css(styles.typeText)}>
-														{tx.messages.length > 0
-															? getMessageTypeLabel(tx.messages[0].type || '')
-															: 'Unknown'}
-													</span>
-													{tx.messages.length > 1 && (
-														<Badge variant="secondary" className={css(styles.countBadge)}>
-															+{tx.messages.length - 1}
-														</Badge>
-													)}
-												</div>
-												{tx.messages.length > 0 && tx.messages[0].data && (
-													<div className={css(styles.actionSummary)}>
-														{getMessageActionSummary(tx.messages[0] as { type: string; data?: Record<string, unknown> })}
-													</div>
-												)}
-											</TableCell>
-											<TableCell>
-												{tx.height ? (
-													<Link
-														to={`/blocks/${tx.height}`}
-														className={css(styles.blockLink)}
-													>
-														{tx.height}
-													</Link>
-												) : (
-													<span className={css(styles.unavailableText)}>-</span>
-												)}
-											</TableCell>
-											<TableCell>
-												<div className={css(styles.timeText)}>
-													{tx.timestamp ? formatTimeAgo(tx.timestamp) : 'Unavailable'}
-												</div>
-											</TableCell>
-											<TableCell>
-												<Badge
-													variant={tx.error ? 'destructive' : 'success'}
-													className={css(styles.statusBadge)}
-												>
-													{tx.error ? (
-														<X className={css(styles.statusIcon)} />
-													) : (
-														<Check className={css(styles.statusIcon)} />
-													)}
-													{status.label}
-												</Badge>
-											</TableCell>
-											<TableCell>
-												<div className={css(styles.feeText)}>
-													{tx.fee?.amount?.[0]
-														? formatNativeFee(tx.fee.amount[0].amount, tx.fee.amount[0].denom)
-														: '-'}
-												</div>
-											</TableCell>
-										</TableRow>
-									)
-								})
-							)}
-						</TableBody>
-					</Table>
-
-					{data && data.pagination.total > 0 && (
-						<Pagination
-							currentPage={page}
-							totalPages={Math.ceil(data.pagination.total / limit)}
-							onPageChange={setPage}
+					{error ? (
+						<DataTable
+							columns={txColumns}
+							data={[]}
+							emptyState="Error loading transactions"
+						/>
+					) : (
+						<DataTable
+							columns={txColumns}
+							data={data?.data ?? []}
 							isLoading={isLoading}
+							pageSize={pageSize}
+							onPageSizeChange={(s) => {
+								setPageSize(s)
+								setPage(0)
+							}}
+							totalRows={data?.pagination.total}
+							currentPage={page}
+							onPageChange={setPage}
+							getRowId={(tx) => tx.id}
+							emptyState="No transactions found matching your filters"
 						/>
 					)}
 				</CardContent>
@@ -545,20 +556,6 @@ const styles = {
 		gridTemplateColumns: 'repeat(2, 1fr)',
 		gap: '0.5rem'
 	},
-	skeletonRow: {
-		height: '3rem',
-		width: '100%'
-	},
-	emptyCell: {
-		textAlign: 'center',
-		color: 'fg.muted'
-	},
-	emptyCellWithPadding: {
-		textAlign: 'center',
-		color: 'fg.muted',
-		paddingTop: '2rem',
-		paddingBottom: '2rem'
-	},
 	txLink: {
 		display: 'flex',
 		alignItems: 'center',
@@ -627,10 +624,4 @@ const styles = {
 		fontSize: '0.875rem',
 		color: 'fg.muted'
 	},
-	tableRow: {
-		transition: 'background-color 0.2s ease',
-		_hover: {
-			backgroundColor: 'bg.accentSubtle'
-		}
-	}
 }
