@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { ArrowLeft, Copy, CheckCircle, User, ArrowUpRight, ArrowDownLeft, Activity, FileCode, Wallet, AlertCircle, Coins } from 'lucide-react'
+import { ArrowLeft, Copy, CheckCircle, User, ArrowUpRight, ArrowDownLeft, Activity, FileCode, Wallet, AlertCircle, Coins, Shield } from 'lucide-react'
 import { type ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/data-table'
 import { api, getAccountBalances, getEvmBalance, type EnhancedTransaction, type TokenBalance } from '@/lib/api'
 import { formatNumber, formatTimeAgo, formatHash, cn, getAddressType, getAlternateAddress, isValidAddress } from '@/lib/utils'
+import { cosmosToValidatorAddress, isCosmosAddress } from '@/lib/address'
 import { formatDenomAmount, getDenomMetadata } from '@/lib/denom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ContractDetails } from '@/components/ContractDetails'
@@ -31,6 +32,7 @@ export default function AddressDetailPage() {
 	const alternateAddr = params.id ? getAlternateAddress(params.id) : null
 	const hexAddr = isEvmFocused ? params.id : alternateAddr
 	const bech32Addr = isEvmFocused ? alternateAddr : params.id
+	const valoperAddr = bech32Addr && isCosmosAddress(bech32Addr) ? cosmosToValidatorAddress(bech32Addr) : null
 
 	useEffect(() => {
 		setMounted(true)
@@ -44,6 +46,14 @@ export default function AddressDetailPage() {
 		},
 		enabled: mounted && !!hexAddr,
 		staleTime: Infinity,
+	})
+
+	const { data: validatorInfo } = useQuery({
+		queryKey: ['validator-for-address', valoperAddr],
+		queryFn: () => api.getValidatorDetail(valoperAddr!),
+		enabled: mounted && !!valoperAddr && !isContract,
+		retry: 0,
+		staleTime: 60000,
 	})
 
 	const primaryAddr = bech32Addr || hexAddr || ''
@@ -265,9 +275,16 @@ export default function AddressDetailPage() {
 					<h1 className={css({ fontSize: '3xl', fontWeight: 'bold' })}>
 						{isContract ? 'Contract' : 'Account'} Details
 					</h1>
-					<Badge variant="outline">
-						{isContract === undefined ? (isEvmFocused ? 'EVM' : 'Cosmos') : isContract ? 'Contract' : 'EOA'}
-					</Badge>
+					{validatorInfo ? (
+						<Badge variant="success">
+							<Shield className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />
+							Validator
+						</Badge>
+					) : (
+						<Badge variant="outline">
+							{isContract === undefined ? (isEvmFocused ? 'EVM' : 'Cosmos') : isContract ? 'Contract' : 'EOA'}
+						</Badge>
+					)}
 				</div>
 				<div className={css({
 					bg: 'bg.accentSubtle',
@@ -299,6 +316,20 @@ export default function AddressDetailPage() {
 							<Button variant="ghost" size="icon" className={css({ w: '8', h: '8', flexShrink: '0' })} onClick={copyBech32}>
 								{copiedBech32 ? <CheckCircle className={css({ w: 'icon.sm', h: 'icon.sm', color: 'green.500' })} /> : <Copy className={css({ w: 'icon.sm', h: 'icon.sm' })} />}
 							</Button>
+						</div>
+					)}
+					{validatorInfo && valoperAddr && (
+						<div className={hstack({ gap: '2', mt: '2', pt: '2', borderTop: '1px solid', borderColor: 'border.default' })}>
+							<Badge variant="success" className={css({ fontSize: 'xs', minW: '14', justifyContent: 'center' })}>
+								<Shield className={css({ w: 'icon.xs', h: 'icon.xs', mr: '1' })} />
+								Valoper
+							</Badge>
+							<p className={css({ fontFamily: 'mono', fontSize: 'sm', wordBreak: 'break-all', flex: '1' })}>
+								{valoperAddr}
+							</p>
+							<Link to={'/validators/' + valoperAddr} className={hstack({ gap: '1', flexShrink: '0', color: 'fg.accent', fontSize: 'xs', _hover: { color: 'accent.default' } })}>
+								{validatorInfo.moniker || 'View Validator'}
+							</Link>
 						</div>
 					)}
 				</div>

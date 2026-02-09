@@ -66,6 +66,25 @@ export function evmToValidatorAddress(evmAddress: string, prefix = DEFAULT_PREFI
 }
 
 /**
+ * Convert a Cosmos wallet address (e.g. rai1...) to its validator operator address (e.g. raivaloper1...)
+ * Both share the same underlying bytes, only the bech32 prefix differs.
+ */
+export function cosmosToValidatorAddress(cosmosAddress: string): string {
+	const decoded = bech32.decode(cosmosAddress)
+	return bech32.encode(`${decoded.prefix}valoper`, decoded.words)
+}
+
+/**
+ * Convert a validator operator address (e.g. raivaloper1...) to its Cosmos wallet address (e.g. rai1...)
+ * Both share the same underlying bytes, only the bech32 prefix differs.
+ */
+export function validatorToCosmosAddress(valoperAddress: string): string {
+	const decoded = bech32.decode(valoperAddress)
+	const walletPrefix = decoded.prefix.replace('valoper', '')
+	return bech32.encode(walletPrefix, decoded.words)
+}
+
+/**
  * Detect address type and return normalized info
  */
 export function parseAddress(address: string, prefix = DEFAULT_PREFIX): {
