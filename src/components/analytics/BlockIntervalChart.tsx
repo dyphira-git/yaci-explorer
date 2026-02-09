@@ -18,21 +18,21 @@ async function getBlockIntervalData(limit: number): Promise<BlockTimeData[]> {
     return []
   }
   const response = await fetch(
-    `${baseUrl}/blocks_raw?order=id.desc&limit=${limit}`
+    `${baseUrl}/blocks_raw?select=id,data->block->header->>time&order=id.desc&limit=${limit}`
   )
-  const blocks = await response.json()
+  const blocks: { id: number; time: string }[] = await response.json()
 
   const data: BlockTimeData[] = []
   for (let i = 0; i < blocks.length - 1; i++) {
-    const currentTime = new Date(blocks[i].data?.block?.header?.time).getTime()
-    const previousTime = new Date(blocks[i + 1].data?.block?.header?.time).getTime()
+    const currentTime = new Date(blocks[i].time).getTime()
+    const previousTime = new Date(blocks[i + 1].time).getTime()
     const diff = (currentTime - previousTime) / 1000
 
     if (diff > 0 && diff < appConfig.analytics.blockIntervalMaxSeconds) {
       data.push({
         height: blocks[i].id,
         time: diff,
-        timestamp: blocks[i].data?.block?.header?.time,
+        timestamp: blocks[i].time,
       })
     }
   }
@@ -82,7 +82,7 @@ export function BlockIntervalChart() {
         const point = params[0]
         return `<div style="font-size: 13px;">
           <strong>Block ${Number(point.name).toLocaleString()}</strong><br/>
-          Interval: <span style="color: ${token('colors.republicGreen.7')}; font-weight: 600;">${point.value[1].toFixed(2)}s</span>
+          Interval: <span style="color: ${token('colors.republicGreen.7')}; font-weight: 600;">${point.value.toFixed(2)}s</span>
         </div>`
       },
     },
@@ -119,7 +119,7 @@ export function BlockIntervalChart() {
     series: [{
       name: 'Block Interval',
       type: 'line',
-      data: data.map((d) => [d.height, d.time]),
+      data: data.map((d) => d.time),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
