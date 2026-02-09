@@ -14,6 +14,7 @@ import { AddressChip } from "@/components/AddressChip"
 import { api, type DelegationEvent, getValidatorSigningInfoLive, getSlashingParams } from "@/lib/api"
 import { formatAddress, formatTimeAgo, fixBech32Address } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
+import { validatorToCosmosAddress } from "@/lib/address"
 import { getChainInfo } from "@/lib/chain-info"
 import { ValidatorSigningChart } from "@/components/analytics/ValidatorSigningChart"
 import { css } from "@/styled-system/css"
@@ -87,9 +88,9 @@ export default function ValidatorDetailPage() {
 	const address = params.address || ""
 	const [eventPage, setEventPage] = useState(0)
 	const [eventTypeFilter, setEventTypeFilter] = useState<string | undefined>()
+	const [eventPageSize, setEventPageSize] = useState(20)
 	const [showDelegateModal, setShowDelegateModal] = useState(false)
 	const [showUndelegateModal, setShowUndelegateModal] = useState(false)
-	const eventLimit = 20
 	const { isConnected } = useWallet()
 
 	// Load chain info for proper denom display
@@ -170,12 +171,12 @@ export default function ValidatorDetailPage() {
 	})
 
 	const { data: eventsData, isLoading: eventsLoading } = useQuery({
-		queryKey: ["delegation-events", address, eventPage, eventTypeFilter],
+		queryKey: ["delegation-events", address, eventPage, eventPageSize, eventTypeFilter],
 		queryFn: () =>
 			api.getDelegationEvents(
 				address,
-				eventLimit,
-				eventPage * eventLimit,
+				eventPageSize,
+				eventPage * eventPageSize,
 				eventTypeFilter
 			),
 		enabled: !!address,
@@ -207,6 +208,16 @@ export default function ValidatorDetailPage() {
 		staleTime: 60000,
 		retry: 1,
 	})
+
+	// Derive the wallet address from the operator address (same bytes, different bech32 prefix)
+	const walletAddr = useMemo(() => {
+		if (!validator?.operator_address) return null
+		try {
+			return validatorToCosmosAddress(validator.operator_address)
+		} catch {
+			return null
+		}
+	}, [validator?.operator_address])
 
 	// Live signing info from chain (Option A - real-time from slashing module)
 	const consensusAddr = validator?.consensus_address
@@ -280,47 +291,61 @@ export default function ValidatorDetailPage() {
 							<CardTitle>Validator Info</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className={css(styles.detailsGrid)}>
-								<div className={css(styles.field)}>
-									<label className={css(styles.fieldLabel)}>Moniker</label>
-									<p className={css(styles.fieldValue)}>
-										{validator.moniker || "-"}
-									</p>
+							<div className={css(styles.infoGrid)}>
+								<div className={css(styles.detailsGrid)}>
+									<div className={css(styles.field)}>
+										<label className={css(styles.fieldLabel)}>Moniker</label>
+										<p className={css(styles.fieldValue)}>
+											{validator.moniker || "-"}
+										</p>
+									</div>
+									{validator.identity && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>Identity</label>
+											<p className={css(styles.monoValue)}>{validator.identity}</p>
+										</div>
+									)}
+									{validator.website && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>Website</label>
+											<a
+												href={
+													validator.website.startsWith("http")
+														? validator.website
+														: `https://${validator.website}`
+												}
+												target="_blank"
+												rel="noopener noreferrer"
+												className={css(styles.websiteLink)}
+											>
+												{validator.website}
+											</a>
+										</div>
+									)}
+									{validator.details && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>Details</label>
+											<p className={css(styles.fieldValue)}>{validator.details}</p>
+										</div>
+									)}
 								</div>
-								{validator.identity && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>Identity</label>
-										<p className={css(styles.monoValue)}>{validator.identity}</p>
+								<div className={css(styles.addressesColumn)}>
+									<div className={css(styles.addressRow)}>
+										<label className={css(styles.fieldLabel)}>Operator</label>
+										<AddressChip address={validator.operator_address} link={false} />
 									</div>
-								)}
-								{validator.website && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>Website</label>
-										<a
-											href={
-												validator.website.startsWith("http")
-													? validator.website
-													: `https://${validator.website}`
-											}
-											target="_blank"
-											rel="noopener noreferrer"
-											className={css(styles.websiteLink)}
-										>
-											{validator.website}
-										</a>
-									</div>
-								)}
-								{validator.details && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>Details</label>
-										<p className={css(styles.fieldValue)}>{validator.details}</p>
-									</div>
-								)}
-								<div className={css(styles.field)}>
-									<label className={css(styles.fieldLabel)}>
-										Operator Address
-									</label>
-									<AddressChip address={validator.operator_address} />
+									{walletAddr && (
+										<div className={css(styles.addressRow)}>
+											<label className={css(styles.fieldLabel)}>Wallet</label>
+											<AddressChip address={walletAddr} />
+										</div>
+									)}
+									{validator.consensus_address && (
+										<div className={css(styles.addressRow)}>
+											<label className={css(styles.fieldLabel)}>Consensus</label>
+											<AddressChip address={validator.consensus_address} link={false} />
+										</div>
+									)}
 								</div>
 							</div>
 						</CardContent>
@@ -385,35 +410,15 @@ export default function ValidatorDetailPage() {
 								columns={delegationColumns}
 								data={eventsData?.data ?? []}
 								isLoading={eventsLoading}
-								hidePagination
 								getRowId={(row) => String(row.id)}
 								emptyState="No delegation events found."
 								maxHeight="none"
+								totalRows={eventsData?.pagination?.total}
+								currentPage={eventPage}
+								onPageChange={setEventPage}
+								pageSize={eventPageSize}
+								onPageSizeChange={setEventPageSize}
 							/>
-
-							{eventsData?.pagination && (
-								<div className={css(styles.pagination)}>
-									<Button
-										variant="outline"
-										size="sm"
-										disabled={!eventsData.pagination.has_prev}
-										onClick={() => setEventPage((p) => p - 1)}
-									>
-										Previous
-									</Button>
-									<span className={css(styles.pageInfo)}>
-										Page {eventPage + 1}
-									</span>
-									<Button
-										variant="outline"
-										size="sm"
-										disabled={!eventsData.pagination.has_next}
-										onClick={() => setEventPage((p) => p + 1)}
-									>
-										Next
-									</Button>
-								</div>
-							)}
 						</CardContent>
 					</Card>
 				</div>
@@ -680,7 +685,7 @@ export default function ValidatorDetailPage() {
 					</Card>
 
 					{/* Validator History - only show if there's data */}
-					{(validator.creation_height || validator.first_seen_tx || validator.consensus_address) && (
+					{(validator.creation_height || validator.first_seen_tx) && (
 						<Card>
 							<CardHeader>
 								<CardTitle>Validator History</CardTitle>
@@ -711,16 +716,6 @@ export default function ValidatorDetailPage() {
 											>
 												{formatAddress(validator.first_seen_tx, 6)}
 											</Link>
-										</div>
-									)}
-									{validator.consensus_address && (
-										<div className={css(styles.field)}>
-											<label className={css(styles.fieldLabel)}>
-												Consensus Address
-											</label>
-											<p className={css(styles.monoValueSmall)}>
-												{validator.consensus_address}
-											</p>
 										</div>
 									)}
 								</div>
@@ -887,10 +882,26 @@ const styles = {
 		flexDirection: "column",
 		gap: "6",
 	},
+	infoGrid: {
+		display: "grid",
+		gridTemplateColumns: { base: "1fr", md: "1fr 1fr" },
+		gap: "4",
+		alignItems: "start",
+	},
 	detailsGrid: {
 		display: "flex",
 		flexDirection: "column",
 		gap: "4",
+	},
+	addressesColumn: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "2",
+	},
+	addressRow: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "0.5",
 	},
 	commissionGrid: {
 		display: "grid",
@@ -973,17 +984,6 @@ const styles = {
 	mutedText: {
 		color: "fg.muted",
 		fontSize: "sm",
-	},
-	pagination: {
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: "4",
-		marginTop: "4",
-	},
-	pageInfo: {
-		fontSize: "sm",
-		color: "fg.muted",
 	},
 	sidebar: {
 		display: "flex",
