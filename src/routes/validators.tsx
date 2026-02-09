@@ -331,7 +331,7 @@ export default function ValidatorsPage() {
 	const { data: stats, isLoading: statsLoading } = useQuery({
 		queryKey: ["validator-stats"],
 		queryFn: () => api.getValidatorStats(),
-		staleTime: 30000,
+		staleTime: 10_000,
 		refetchInterval: 10_000,
 	})
 
@@ -349,7 +349,7 @@ export default function ValidatorsPage() {
 				sortDir: "asc",
 				search: search || undefined,
 			}),
-		staleTime: 15000,
+		staleTime: 10_000,
 		refetchInterval: 10_000,
 	})
 
