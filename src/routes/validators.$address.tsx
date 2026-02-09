@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "react-router"
-import { ArrowLeft, Shield, AlertTriangle, CheckCircle, Coins, Award, Activity } from "lucide-react"
+import { ArrowLeft, Shield, Coins, Award, Activity } from "lucide-react"
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DelegateModal, UndelegateModal } from "@/components/staking"
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AddressChip } from "@/components/AddressChip"
-import { api, type DelegationEvent, getValidatorSigningInfoLive, getSlashingParams } from "@/lib/api"
+import { api, type DelegationEvent } from "@/lib/api"
 import { formatAddress, formatTimeAgo, fixBech32Address } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { validatorToCosmosAddress } from "@/lib/address"
@@ -68,17 +68,6 @@ function formatCommission(rate: number | null): string {
 	if (normalized > 1e6) normalized = normalized / 1e18
 	const pct = normalized > 1 ? normalized : normalized * 100
 	return `${pct.toFixed(2)}%`
-}
-
-/**
- * Calculate liveness percentage from missed blocks counter and window size
- */
-function calculateLivenessPercent(missedStr: string, windowStr: string): string {
-	const missed = Number(missedStr)
-	const window = Number(windowStr)
-	if (window === 0) return "100.0"
-	const signed = window - missed
-	return ((signed / window) * 100).toFixed(1)
 }
 
 const delegationColumnHelper = createColumnHelper<DelegationEvent>()
@@ -183,14 +172,6 @@ export default function ValidatorDetailPage() {
 		staleTime: 15000,
 	})
 
-	const { data: jailingEvents, isLoading: jailingLoading, error: jailingError } = useQuery({
-		queryKey: ["jailing-events", address],
-		queryFn: () => api.getValidatorJailingEvents(address, 20, 0),
-		enabled: !!address,
-		staleTime: 30000,
-		retry: 1,
-	})
-
 	// Performance metrics from block_results
 	const { data: performance, isLoading: performanceLoading } = useQuery({
 		queryKey: ["validator-performance", address],
@@ -218,24 +199,6 @@ export default function ValidatorDetailPage() {
 			return null
 		}
 	}, [validator?.operator_address])
-
-	// Live signing info from chain (Option A - real-time from slashing module)
-	const consensusAddr = validator?.consensus_address
-	const { data: liveSigningInfo, isLoading: liveSigningLoading } = useQuery({
-		queryKey: ["validator-live-signing-info", consensusAddr],
-		queryFn: () => consensusAddr ? getValidatorSigningInfoLive(consensusAddr) : null,
-		enabled: !!consensusAddr,
-		staleTime: 10000, // Refresh every 10 seconds
-		retry: 1,
-	})
-
-	// Slashing params (for context - signed_blocks_window)
-	const { data: slashingParams } = useQuery({
-		queryKey: ["slashing-params"],
-		queryFn: () => getSlashingParams(),
-		staleTime: 300000, // Cache for 5 minutes
-		retry: 1,
-	})
 
 	if (error) {
 		return (
@@ -607,83 +570,6 @@ export default function ValidatorDetailPage() {
 						</CardContent>
 					</Card>
 
-					{/* Live Signing Status (from chain's slashing module) */}
-					<Card>
-						<CardHeader>
-							<CardTitle className={css(styles.stakingTitle)}>
-								<Activity className={css(styles.stakingIcon)} />
-								Live Signing Status
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{liveSigningLoading ? (
-								<div className={css(styles.loadingContainer)}>
-									<Skeleton className={css(styles.skeleton)} />
-								</div>
-							) : liveSigningInfo ? (
-								<div className={css(styles.sidebarFields)}>
-									<div className={css(styles.sidebarRow)}>
-										<span className={css(styles.sidebarLabel)}>Missed Blocks</span>
-										<span
-											className={css(styles.sidebarValue)}
-											style={{
-												color: Number(liveSigningInfo.missed_blocks_counter) > 0
-													? "var(--colors-yellow-500)"
-													: "var(--colors-green-500)"
-											}}
-										>
-											{Number(liveSigningInfo.missed_blocks_counter).toLocaleString()}
-											{slashingParams && (
-												<span className={css(styles.signingWindow)}>
-													{" "}/ {Number(slashingParams.signed_blocks_window).toLocaleString()}
-												</span>
-											)}
-										</span>
-									</div>
-									{slashingParams && (
-										<div className={css(styles.sidebarRow)}>
-											<span className={css(styles.sidebarLabel)}>Current Window</span>
-											<span className={css(styles.sidebarValue)}>
-												{calculateLivenessPercent(
-													liveSigningInfo.missed_blocks_counter,
-													slashingParams.signed_blocks_window
-												)}%
-											</span>
-										</div>
-									)}
-									{liveSigningInfo.tombstoned && (
-										<div className={css(styles.sidebarRow)}>
-											<span className={css(styles.sidebarLabel)}>Status</span>
-											<Badge variant="destructive">Tombstoned</Badge>
-										</div>
-									)}
-									{liveSigningInfo.jailed_until && new Date(liveSigningInfo.jailed_until) > new Date() && (
-										<div className={css(styles.sidebarRow)}>
-											<span className={css(styles.sidebarLabel)}>Jailed Until</span>
-											<span className={css(styles.sidebarValue)}>
-												{formatTimeAgo(liveSigningInfo.jailed_until)}
-											</span>
-										</div>
-									)}
-									<div className={css(styles.sidebarRow)}>
-										<span className={css(styles.sidebarLabel)}>Start Height</span>
-										<span className={css(styles.sidebarValue)}>
-											{Number(liveSigningInfo.start_height).toLocaleString()}
-										</span>
-									</div>
-								</div>
-							) : !validator.consensus_address ? (
-								<p className={css(styles.mutedText)}>
-									No consensus address available
-								</p>
-							) : (
-								<p className={css(styles.mutedText)}>
-									Signing info not available
-								</p>
-							)}
-						</CardContent>
-					</Card>
-
 					{/* Validator History - only show if there's data */}
 					{(validator.creation_height || validator.first_seen_tx) && (
 						<Card>
@@ -756,68 +642,6 @@ export default function ValidatorDetailPage() {
 						</Card>
 					)}
 
-					{/* Jailing History */}
-					<Card>
-						<CardHeader>
-							<CardTitle>Jailing History</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{jailingLoading ? (
-								<div className={css(styles.loadingContainer)}>
-									<Skeleton className={css(styles.skeleton)} />
-									<Skeleton className={css(styles.skeleton)} />
-								</div>
-							) : jailingError ? (
-								<div className={css(styles.jailingErrorState)}>
-									<AlertTriangle className={css(styles.jailingErrorIcon)} />
-									<p className={css(styles.mutedText)}>
-										Jailing history not available
-									</p>
-								</div>
-							) : !jailingEvents || jailingEvents.length === 0 ? (
-								<div className={css(styles.jailingCleanState)}>
-									<CheckCircle className={css(styles.jailingCleanIcon)} />
-									<div>
-										<p className={css(styles.jailingCleanTitle)}>Clean Record</p>
-										<p className={css(styles.mutedText)}>
-											No jailing events recorded
-										</p>
-									</div>
-								</div>
-							) : (
-								<div className={css(styles.jailingEventsList)}>
-									{jailingEvents.map((event, index) => (
-										<div
-											key={`${event.height}-${index}`}
-											className={css(styles.jailingEvent)}
-											style={{
-												borderLeftColor: event.event_type === "slash" ? "var(--colors-red-500)" : "var(--colors-orange-500)",
-											}}
-										>
-											<div className={css(styles.jailingEventHeader)}>
-												<Badge variant={event.event_type === "slash" ? "destructive" : "outline"}>
-													{event.event_type.toUpperCase()}
-												</Badge>
-												<Link
-													to={`/blocks/${event.height}`}
-													className={css(styles.txLink)}
-												>
-													#{event.height}
-												</Link>
-											</div>
-											<p className={css(styles.mutedText)}>
-												{event.reason || "No reason provided"}
-												{event.power && ` (Power: ${event.power})`}
-											</p>
-											<p className={css(styles.jailingEventTime)}>
-												{event.detected_at ? formatTimeAgo(event.detected_at) : "-"}
-											</p>
-										</div>
-									))}
-								</div>
-							)}
-						</CardContent>
-					</Card>
 				</div>
 			</div>
 
@@ -1008,10 +832,6 @@ const styles = {
 		fontSize: "sm",
 		fontWeight: "medium",
 	},
-	signingWindow: {
-		color: "fg.muted",
-		fontSize: "xs",
-	},
 	errorContent: {
 		pt: "6",
 		textAlign: "center",
@@ -1033,54 +853,6 @@ const styles = {
 	skeletonBody: {
 		height: "64",
 		width: "full",
-	},
-	jailingErrorState: {
-		display: "flex",
-		alignItems: "center",
-		gap: "3",
-		py: "4",
-	},
-	jailingErrorIcon: {
-		height: "5",
-		width: "5",
-		color: "fg.muted",
-	},
-	jailingCleanState: {
-		display: "flex",
-		alignItems: "center",
-		gap: "3",
-		py: "4",
-	},
-	jailingCleanIcon: {
-		height: "5",
-		width: "5",
-		color: "republicGreen.default",
-	},
-	jailingCleanTitle: {
-		fontWeight: "medium",
-		fontSize: "sm",
-	},
-	jailingEventsList: {
-		display: "flex",
-		flexDirection: "column",
-		gap: "3",
-	},
-	jailingEvent: {
-		padding: "3",
-		borderRadius: "md",
-		bg: "bg.muted",
-		borderLeft: "3px solid",
-	},
-	jailingEventHeader: {
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "space-between",
-		marginBottom: "1",
-	},
-	jailingEventTime: {
-		fontSize: "xs",
-		color: "fg.muted",
-		marginTop: "1",
 	},
 	stakingTitle: {
 		display: "flex",

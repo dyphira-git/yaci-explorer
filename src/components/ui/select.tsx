@@ -103,12 +103,25 @@ interface SelectContentProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const SelectContent = ({ className, children, ...props }: SelectContentProps) => {
-  const { open } = React.useContext(SelectContext)
+  const { open, setOpen } = React.useContext(SelectContext)
+  const ref = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.parentElement?.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open, setOpen])
 
   if (!open) return null
 
   return (
     <div
+      ref={ref}
       className={cx(
         css({
           position: 'absolute',

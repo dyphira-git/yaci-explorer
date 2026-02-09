@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router'
 import { FileCode2, CheckCircle, XCircle } from 'lucide-react'
 import { type ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { EvmNav } from '@/components/common/evm-nav'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { AddressChip } from '@/components/AddressChip'
 import { DataTable } from '@/components/ui/data-table'
 import { api } from '@/lib/api'
+import { formatAddress } from '@/lib/utils'
 import { css } from '@/styled-system/css'
 
 // -- Contract type from API response --
@@ -51,6 +52,20 @@ const contractColumns: ColumnDef<EvmContract, any>[] = [
 			)
 		},
 	}),
+	columnHelper.accessor('creation_tx', {
+		header: 'Deploy Tx',
+		enableSorting: false,
+		cell: ({ getValue }) => {
+			const tx = getValue()
+			return tx ? (
+				<Link to={`/tx/${tx}`} className={css(styles.txLink)}>
+					{formatAddress(tx, 6)}
+				</Link>
+			) : (
+				<span className={css({ color: 'fg.muted' })}>-</span>
+			)
+		},
+	}),
 	columnHelper.accessor('is_verified', {
 		header: 'Verified',
 		enableSorting: false,
@@ -67,27 +82,48 @@ const contractColumns: ColumnDef<EvmContract, any>[] = [
 				</Badge>
 			),
 	}),
+	columnHelper.accessor('bytecode_hash', {
+		header: 'Bytecode Hash',
+		enableSorting: false,
+		cell: ({ getValue }) => {
+			const hash = getValue()
+			return hash ? (
+				<code className={css(styles.bytecodeHash)} title={hash}>
+					{hash.slice(0, 10)}...{hash.slice(-6)}
+				</code>
+			) : (
+				<span className={css({ color: 'fg.muted' })}>-</span>
+			)
+		},
+	}),
 	columnHelper.accessor('creation_height', {
 		header: 'Created',
 		enableSorting: false,
 		cell: ({ getValue }) => (
-			<div className={css({ fontSize: 'sm', fontFamily: 'mono' })}>
-				Block #{getValue().toLocaleString()}
-			</div>
+			<Link to={`/blocks/${getValue()}`} className={css(styles.blockLink)}>
+				#{getValue().toLocaleString()}
+			</Link>
 		),
 	}),
 ]
 
 export default function EvmContractsPage() {
 	const [page, setPage] = useState(0)
-	const limit = 20
+	const [pageSize, setPageSize] = useState(20)
 
 	const { data, isLoading, error } = useQuery({
-		queryKey: ['evm-contracts', page],
-		queryFn: () => api.getEvmContracts(limit, page * limit),
+		queryKey: ['evm-contracts', page, pageSize],
+		queryFn: () => api.getEvmContracts(pageSize, page * pageSize),
 	})
 
 	const hasData = data && data.length > 0
+
+	// Estimate total rows for pagination (API doesn't return count)
+	const estimatedTotal = data
+		? (data.length < pageSize
+			? page * pageSize + data.length
+			: (page + 1) * pageSize + 1)
+		: 0
 
 	return (
 		<div className={css(styles.container)}>
@@ -127,31 +163,17 @@ export default function EvmContractsPage() {
 							columns={contractColumns}
 							data={data ?? []}
 							isLoading={isLoading}
-							hidePagination
-							pageSize={data?.length || limit}
+							pageSize={pageSize}
+							onPageSizeChange={(s) => {
+								setPageSize(s)
+								setPage(0)
+							}}
+							totalRows={estimatedTotal}
+							currentPage={page}
+							onPageChange={setPage}
 							getRowId={(contract) => contract.address}
+							emptyState="No contracts found"
 						/>
-					)}
-
-					{hasData && data.length >= limit && (
-						<div className={css(styles.pagination)}>
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={page === 0}
-								onClick={() => setPage(p => p - 1)}
-							>
-								Previous
-							</Button>
-							<span className={css(styles.pageInfo)}>Page {page + 1}</span>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => setPage(p => p + 1)}
-							>
-								Next
-							</Button>
-						</div>
 					)}
 				</CardContent>
 			</Card>
@@ -202,15 +224,20 @@ const styles = {
 		maxWidth: 'md',
 		margin: '0 auto',
 	},
-	pagination: {
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-		gap: '4',
-		marginTop: '4',
+	txLink: {
+		fontFamily: 'mono',
+		fontSize: 'xs',
+		color: 'accent.default',
+		_hover: { textDecoration: 'underline' },
 	},
-	pageInfo: {
+	blockLink: {
+		fontFamily: 'mono',
 		fontSize: 'sm',
+		_hover: { color: 'accent.default' },
+	},
+	bytecodeHash: {
+		fontFamily: 'mono',
+		fontSize: 'xs',
 		color: 'fg.muted',
 	},
 }

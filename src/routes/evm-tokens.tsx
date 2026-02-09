@@ -1,12 +1,11 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
-import { Coins, ChevronLeft, ChevronRight } from "lucide-react"
+import { Coins } from "lucide-react"
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { EvmNav } from "@/components/common/evm-nav"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { AddressChip } from "@/components/AddressChip"
 import { DataTable } from "@/components/ui/data-table"
 import { api } from "@/lib/api"
@@ -51,11 +50,15 @@ const formatTokenType = (type: string | null) => {
  */
 const formatSupply = (supply: string | null, decimals: number | null) => {
 	if (!supply) return "-"
-	const dec = decimals || 18
-	const value = BigInt(supply)
-	const divisor = BigInt(10 ** dec)
-	const whole = value / divisor
-	return formatNumber(whole.toString())
+	try {
+		const dec = decimals || 18
+		const value = BigInt(supply)
+		const divisor = BigInt(10 ** dec)
+		const whole = value / divisor
+		return formatNumber(whole.toString())
+	} catch {
+		return supply
+	}
 }
 
 // -- Column definitions --
@@ -99,7 +102,9 @@ const tokenColumns: ColumnDef<EvmToken, any>[] = [
 		enableSorting: false,
 		cell: ({ row }) => (
 			<div className={css(styles.supplyInfo)}>
-				<span>{formatSupply(row.original.total_supply, row.original.decimals)}</span>
+				<span className={css({ fontFamily: "mono", fontSize: "sm" })}>
+					{formatSupply(row.original.total_supply, row.original.decimals)}
+				</span>
 				{row.original.decimals !== null && (
 					<span className={css(styles.decimals)}>
 						({row.original.decimals} decimals)
@@ -126,14 +131,21 @@ const tokenColumns: ColumnDef<EvmToken, any>[] = [
 
 export default function EvmTokensPage() {
 	const [page, setPage] = useState(0)
-	const limit = 20
+	const [pageSize, setPageSize] = useState(20)
 
 	const { data, isLoading, error } = useQuery({
-		queryKey: ["evm-tokens", page],
-		queryFn: () => api.getEvmTokens(limit, page * limit),
+		queryKey: ["evm-tokens", page, pageSize],
+		queryFn: () => api.getEvmTokens(pageSize, page * pageSize),
 	})
 
 	const hasData = data && data.length > 0
+
+	// Estimate total rows for pagination (API doesn't return count)
+	const estimatedTotal = data
+		? (data.length < pageSize
+			? page * pageSize + data.length
+			: (page + 1) * pageSize + 1)
+		: 0
 
 	return (
 		<div className={css(styles.container)}>
@@ -164,8 +176,14 @@ export default function EvmTokensPage() {
 							columns={tokenColumns}
 							data={data ?? []}
 							isLoading={isLoading}
-							hidePagination
-							pageSize={limit}
+							pageSize={pageSize}
+							onPageSizeChange={(s) => {
+								setPageSize(s)
+								setPage(0)
+							}}
+							totalRows={estimatedTotal}
+							currentPage={page}
+							onPageChange={setPage}
 							getRowId={(row) => row.address}
 							emptyState={
 								<div>
@@ -178,32 +196,6 @@ export default function EvmTokensPage() {
 								</div>
 							}
 						/>
-					)}
-
-					{/* Offset-based prev/next navigation (API lacks total count) */}
-					{hasData && data.length >= limit && (
-						<div className={css(styles.pagination)}>
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={page === 0}
-								onClick={() => setPage((p) => p - 1)}
-								className={css({ gap: "1" })}
-							>
-								<ChevronLeft className={css({ h: "4", w: "4" })} />
-								Previous
-							</Button>
-							<span className={css(styles.pageInfo)}>Page {page + 1}</span>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => setPage((p) => p + 1)}
-								className={css({ gap: "1" })}
-							>
-								Next
-								<ChevronRight className={css({ h: "4", w: "4" })} />
-							</Button>
-						</div>
 					)}
 				</CardContent>
 			</Card>
@@ -283,22 +275,9 @@ const styles = {
 	blockLink: {
 		fontFamily: "mono",
 		fontSize: "sm",
-		_hover: {
-			color: "colorPalette",
-		},
+		_hover: { color: "accent.default" },
 	},
 	muted: {
-		color: "fg.muted",
-	},
-	pagination: {
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: "4",
-		marginTop: "4",
-	},
-	pageInfo: {
-		fontSize: "sm",
 		color: "fg.muted",
 	},
 }
