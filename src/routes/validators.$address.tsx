@@ -291,64 +291,62 @@ export default function ValidatorDetailPage() {
 							<CardTitle>Validator Info</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className={css(styles.detailsGrid)}>
-								<div className={css(styles.field)}>
-									<label className={css(styles.fieldLabel)}>Moniker</label>
-									<p className={css(styles.fieldValue)}>
-										{validator.moniker || "-"}
-									</p>
+							<div className={css(styles.infoGrid)}>
+								<div className={css(styles.detailsGrid)}>
+									<div className={css(styles.field)}>
+										<label className={css(styles.fieldLabel)}>Moniker</label>
+										<p className={css(styles.fieldValue)}>
+											{validator.moniker || "-"}
+										</p>
+									</div>
+									{validator.identity && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>Identity</label>
+											<p className={css(styles.monoValue)}>{validator.identity}</p>
+										</div>
+									)}
+									{validator.website && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>Website</label>
+											<a
+												href={
+													validator.website.startsWith("http")
+														? validator.website
+														: `https://${validator.website}`
+												}
+												target="_blank"
+												rel="noopener noreferrer"
+												className={css(styles.websiteLink)}
+											>
+												{validator.website}
+											</a>
+										</div>
+									)}
+									{validator.details && (
+										<div className={css(styles.field)}>
+											<label className={css(styles.fieldLabel)}>Details</label>
+											<p className={css(styles.fieldValue)}>{validator.details}</p>
+										</div>
+									)}
 								</div>
-								{validator.identity && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>Identity</label>
-										<p className={css(styles.monoValue)}>{validator.identity}</p>
+								<div className={css(styles.addressesColumn)}>
+									<div className={css(styles.addressRow)}>
+										<label className={css(styles.fieldLabel)}>Operator</label>
+										<AddressChip address={validator.operator_address} link={false} />
 									</div>
-								)}
-								{validator.website && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>Website</label>
-										<a
-											href={
-												validator.website.startsWith("http")
-													? validator.website
-													: `https://${validator.website}`
-											}
-											target="_blank"
-											rel="noopener noreferrer"
-											className={css(styles.websiteLink)}
-										>
-											{validator.website}
-										</a>
-									</div>
-								)}
-								{validator.details && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>Details</label>
-										<p className={css(styles.fieldValue)}>{validator.details}</p>
-									</div>
-								)}
-								<div className={css(styles.field)}>
-									<label className={css(styles.fieldLabel)}>
-										Operator Address
-									</label>
-									<AddressChip address={validator.operator_address} link={false} />
+									{walletAddr && (
+										<div className={css(styles.addressRow)}>
+											<label className={css(styles.fieldLabel)}>Wallet</label>
+											<AddressChip address={walletAddr} />
+										</div>
+									)}
+									{validator.consensus_address && (
+										<div className={css(styles.addressRow)}>
+											<label className={css(styles.fieldLabel)}>Consensus</label>
+											<AddressChip address={validator.consensus_address} link={false} />
+										</div>
+									)}
 								</div>
-								{walletAddr && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>
-											Wallet Address
-										</label>
-										<AddressChip address={walletAddr} />
-									</div>
-								)}
-								{validator.consensus_address && (
-									<div className={css(styles.field)}>
-										<label className={css(styles.fieldLabel)}>
-											Consensus Address
-										</label>
-										<AddressChip address={validator.consensus_address} link={false} />
-									</div>
-								)}
 							</div>
 						</CardContent>
 					</Card>
@@ -884,10 +882,26 @@ const styles = {
 		flexDirection: "column",
 		gap: "6",
 	},
+	infoGrid: {
+		display: "grid",
+		gridTemplateColumns: { base: "1fr", md: "1fr 1fr" },
+		gap: "4",
+		alignItems: "start",
+	},
 	detailsGrid: {
 		display: "flex",
 		flexDirection: "column",
 		gap: "4",
+	},
+	addressesColumn: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "2",
+	},
+	addressRow: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "0.5",
 	},
 	commissionGrid: {
 		display: "grid",
