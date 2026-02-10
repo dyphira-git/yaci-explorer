@@ -177,10 +177,7 @@ export default function ValidatorDetailPage() {
 
 			fetch(`${apiURL}/rpc/request_validator_refresh`, {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Prefer: "params=single-object",
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ _operator_address: validator.operator_address }),
 			})
 				.then((res) => res.json())
