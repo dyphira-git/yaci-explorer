@@ -4,6 +4,7 @@
  */
 
 import { bech32 } from 'bech32'
+import { hexToBytes } from './address'
 import { REPUBLIC_CHAIN_CONFIG } from './chain-config'
 
 // Message type URLs
@@ -114,7 +115,7 @@ function getDefaultFee() {
  * Convert EVM hex address to Cosmos bech32
  */
 function evmToCosmos(hexAddress: string): string {
-	const addressBytes = Buffer.from(hexAddress.slice(2), 'hex')
+	const addressBytes = hexToBytes(hexAddress.slice(2))
 	const words = bech32.toWords(addressBytes)
 	return bech32.encode(REPUBLIC_CHAIN_CONFIG.bech32Prefix, words)
 }
@@ -186,7 +187,7 @@ async function signAndBroadcast(
 				{
 					public_key: {
 						'@type': '/cosmos.evm.crypto.v1.ethsecp256k1.PubKey',
-						key: Buffer.from(account.pubkey).toString('base64'),
+						key: btoa(String.fromCharCode(...account.pubkey)),
 					},
 					mode_info: { single: { mode: 'SIGN_MODE_LEGACY_AMINO_JSON' } },
 					sequence: sequence.toString(),
