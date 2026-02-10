@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "react-router"
 import { ArrowLeft, Shield, Coins, Award, Activity } from "lucide-react"
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AddressChip } from "@/components/AddressChip"
 import { api, type DelegationEvent } from "@/lib/api"
+import { getConfig } from "@/lib/env"
 import { formatAddress, formatTimeAgo, fixBech32Address } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { validatorToCosmosAddress } from "@/lib/address"
@@ -148,16 +149,52 @@ export default function ValidatorDetailPage() {
 		[baseDenom, displayDenom],
 	)
 
+	const refreshRequested = useRef(false)
+
 	const {
 		data: validator,
 		isLoading,
 		error,
+		refetch: refetchValidator,
 	} = useQuery({
 		queryKey: ["validator-detail", address],
 		queryFn: () => api.getValidatorDetail(address),
 		enabled: !!address,
 		staleTime: 15000,
 	})
+
+	// Request on-demand validator refresh if data is stale (>30s old)
+	useEffect(() => {
+		if (!validator?.operator_address || refreshRequested.current) return
+
+		const updatedAt = new Date(validator.updated_at).getTime()
+		const ageMs = Date.now() - updatedAt
+		const STALE_THRESHOLD_MS = 30_000
+
+		if (ageMs > STALE_THRESHOLD_MS) {
+			refreshRequested.current = true
+			const apiURL = getConfig().apiUrl
+
+			fetch(`${apiURL}/rpc/request_validator_refresh`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Prefer: "params=single-object",
+				},
+				body: JSON.stringify({ _operator_address: validator.operator_address }),
+			})
+				.then((res) => res.json())
+				.then((data) => {
+					if (data.success) {
+						// Refetch after giving the refresh daemon time to update
+						setTimeout(() => refetchValidator(), 3000)
+					}
+				})
+				.catch(() => {
+					// Silently fail -- user still sees cached data
+				})
+		}
+	}, [validator, refetchValidator])
 
 	const { data: eventsData, isLoading: eventsLoading } = useQuery({
 		queryKey: ["delegation-events", address, eventPage, eventPageSize, eventTypeFilter],
