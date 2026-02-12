@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
-import { Shield, AlertTriangle, CheckCircle } from "lucide-react"
+import { Shield } from "lucide-react"
 import { type ColumnDef, createColumnHelper, type SortingState } from "@tanstack/react-table"
 import {
 	Card,
@@ -10,13 +10,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/ui/data-table"
 import { ValidatorAvatar } from "@/components/ValidatorAvatar"
 import { api, type Validator } from "@/lib/api"
-import { formatAddress, formatTimeAgo } from "@/lib/utils"
+import { formatAddress } from "@/lib/utils"
 import { formatDenomAmount } from "@/lib/denom"
 import { getChainInfo } from "@/lib/chain-info"
 import { css } from "@/styled-system/css"
@@ -151,178 +150,9 @@ const validatorColumns: ColumnDef<Validator, any>[] = [
 	}),
 ]
 
-function ValidatorEvents() {
-	const { data: events, isLoading, error } = useQuery({
-		queryKey: ["validator-events"],
-		queryFn: () => api.getRecentValidatorEvents(["slash", "liveness", "jail"], 100, 0),
-		staleTime: 30000,
-		refetchInterval: 10_000,
-		retry: 1,
-	})
-
-	if (isLoading) {
-		return (
-			<div className={css(styles.loadingContainer)}>
-				{Array.from({ length: 5 }).map((_, i) => (
-					<Skeleton key={i} className={css(styles.skeleton)} />
-				))}
-			</div>
-		)
-	}
-
-	if (error) {
-		return (
-			<Card>
-				<CardContent className={css(styles.eventsErrorCard)}>
-					<AlertTriangle className={css(styles.eventsErrorIcon)} />
-					<div className={css(styles.eventsErrorText)}>
-						<div className={css(styles.eventsErrorTitle)}>
-							Validator Events Not Available
-						</div>
-						<div className={css(styles.eventsErrorDesc)}>
-							Block results extraction may not be enabled. Run yaci with
-							--enable-block-results flag.
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-		)
-	}
-
-	if (!events || events.length === 0) {
-		return (
-			<Card>
-				<CardContent className={css(styles.eventsEmptyCard)}>
-					<CheckCircle className={css(styles.eventsEmptyIcon)} />
-					<div className={css(styles.eventsEmptyText)}>
-						<div className={css(styles.eventsEmptyTitle)}>No Recent Events</div>
-						<div className={css(styles.eventsEmptyDesc)}>
-							No slashing or liveness events have occurred recently.
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-		)
-	}
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Recent Liveness Events</CardTitle>
-				<CardDescription>
-					Slashing, jailing, and liveness fault events from finalize_block_events
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<div className={css(styles.eventsList)}>
-					{events.map((event, index) => {
-						const displayName = event.moniker
-							|| (event.validator_address ? `${formatAddress(event.validator_address, 10)}` : "Unknown")
-						return (
-						<div
-							key={`${event.height}-${index}`}
-							className={css(styles.eventItem)}
-							style={{
-								borderLeftColor: event.event_type === "slash" ? "var(--colors-red-500)" : "var(--colors-orange-500)",
-							}}
-						>
-							<div className={css(styles.eventInfo)}>
-								<div className={css(styles.eventHeader)}>
-									<Badge variant={event.event_type === "slash" ? "destructive" : "outline"}>
-										{event.event_type.toUpperCase()}
-									</Badge>
-									{event.operator_address ? (
-										<Link
-											to={`/validators/${event.operator_address}`}
-											className={css(styles.eventMoniker)}
-										>
-											{displayName}
-										</Link>
-									) : (
-										<span className={css(styles.eventMoniker)}>
-											{displayName}
-										</span>
-									)}
-								</div>
-								<div className={css(styles.eventDetails)}>
-									<div className={css(styles.eventReason)}>
-										{formatEventReason(event.event_type, event.reason, event.attributes)}
-									</div>
-									<div className={css(styles.eventAddresses)}>
-										{event.validator_address && (
-											<>
-												<span className={css(styles.eventAddressLabel)}>Consensus:</span>
-												<code className={css(styles.eventAddressValue)}>
-													{formatAddress(event.validator_address, 12)}
-												</code>
-											</>
-										)}
-										{event.power && (
-											<>
-												<span className={css(styles.eventAddressLabel)}>Power:</span>
-												<span className={css(styles.eventAddressValue)}>{event.power}</span>
-											</>
-										)}
-										{event.attributes?.missed_blocks_counter && (
-											<>
-												<span className={css(styles.eventAddressLabel)}>Missed:</span>
-												<span className={css(styles.eventAddressValue)}>{event.attributes.missed_blocks_counter}</span>
-											</>
-										)}
-									</div>
-								</div>
-							</div>
-							<div className={css(styles.eventMeta)}>
-								<Link
-									to={`/blocks/${event.height}`}
-									className={css(styles.eventBlockLink)}
-								>
-									Block #{event.height}
-								</Link>
-								<div className={css(styles.eventTime)}>
-									{event.block_time
-										? formatTimeAgo(event.block_time)
-										: event.created_at
-											? formatTimeAgo(event.created_at)
-											: "-"}
-								</div>
-							</div>
-						</div>
-						)
-					})}
-				</div>
-			</CardContent>
-		</Card>
-	)
-}
-
-/**
- * Format event reason for better readability.
- * Falls back to extracting detail from event attributes if reason is empty.
- */
-function formatEventReason(eventType: string, reason: string | null, attributes?: Record<string, string> | null): string {
-	if (reason) {
-		if (reason.includes("missing_signature")) return "Missed block signature (liveness fault)"
-		if (reason.includes("double_sign")) return "Double signing detected"
-		if (eventType === "jail") return `Jailed: ${reason}`
-		if (eventType === "liveness") return `Liveness fault: ${reason}`
-		return reason
-	}
-	if (attributes) {
-		const missed = attributes.missed_blocks_counter
-		const jailedUntil = attributes.jailed_until
-		if (missed) return `Missed ${missed} blocks`
-		if (jailedUntil) return `Jailed until ${jailedUntil}`
-	}
-	if (eventType === "liveness") return "Liveness fault detected"
-	if (eventType === "jail") return "Validator jailed"
-	if (eventType === "slash") return "Validator slashed"
-	return "Event occurred"
-}
-
 export default function ValidatorsPage() {
 	const [search, setSearch] = useState("")
-	const [pageSize, setPageSize] = useState(20)
+	const [pageSize, setPageSize] = useState(50)
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: "_activeRank", desc: false },
 		{ id: "moniker", desc: true },
@@ -429,26 +259,19 @@ export default function ValidatorsPage() {
 				) : null}
 			</div>
 
-			<Tabs defaultValue="validators" className={css(styles.tabs)}>
-				<TabsList>
-					<TabsTrigger value="validators">Validator Set</TabsTrigger>
-					<TabsTrigger value="events">Liveness Events</TabsTrigger>
-				</TabsList>
+			{/* Search Filter */}
+			<div className={css(styles.filterRow)}>
+				<input
+					type="text"
+					placeholder="Search by moniker or address..."
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					className={css(styles.searchInput)}
+				/>
+			</div>
 
-				<TabsContent value="validators" className={css(styles.tabContent)}>
-					{/* Search Filter */}
-					<div className={css(styles.filterRow)}>
-						<input
-							type="text"
-							placeholder="Search by moniker or address..."
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							className={css(styles.searchInput)}
-						/>
-					</div>
-
-					{/* Validators Table */}
-					<Card>
+			{/* Validators Table */}
+			<Card>
 				<CardHeader>
 					<CardTitle>Validator Set</CardTitle>
 					<CardDescription>
@@ -479,13 +302,7 @@ export default function ValidatorsPage() {
 						}
 					/>
 				</CardContent>
-					</Card>
-				</TabsContent>
-
-				<TabsContent value="events" className={css(styles.tabContent)}>
-					<ValidatorEvents />
-				</TabsContent>
-			</Tabs>
+			</Card>
 		</div>
 	)
 }
@@ -577,15 +394,6 @@ const styles = {
 		_focus: { borderColor: "accent.default" },
 		_placeholder: { color: "fg.muted" },
 	},
-	loadingContainer: {
-		display: "flex",
-		flexDirection: "column",
-		gap: "3",
-	},
-	skeleton: {
-		height: "12",
-		width: "full",
-	},
 	emptyState: {
 		textAlign: "center",
 		py: "12",
@@ -621,125 +429,5 @@ const styles = {
 	monoText: {
 		fontFamily: "mono",
 		fontSize: "sm",
-	},
-	tabs: {
-		width: "full",
-	},
-	tabContent: {
-		display: "flex",
-		flexDirection: "column",
-		gap: "4",
-		marginTop: "4",
-	},
-	eventsList: {
-		display: "flex",
-		flexDirection: "column",
-		gap: "3",
-	},
-	eventItem: {
-		display: "flex",
-		justifyContent: "space-between",
-		alignItems: "center",
-		padding: "4",
-		borderRadius: "md",
-		bg: "bg.muted",
-		borderLeft: "4px solid",
-	},
-	eventInfo: {
-		display: "flex",
-		flexDirection: "column",
-		gap: "1",
-	},
-	eventHeader: {
-		display: "flex",
-		alignItems: "center",
-		gap: "2",
-	},
-	eventMoniker: {
-		fontWeight: "medium",
-		color: "accent.default",
-		_hover: { textDecoration: "underline" },
-	},
-	eventReason: {
-		fontSize: "sm",
-		color: "fg.muted",
-	},
-	eventDetails: {
-		display: "flex",
-		flexDirection: "column",
-		gap: "1",
-		marginTop: "1",
-	},
-	eventAddresses: {
-		display: "flex",
-		alignItems: "center",
-		gap: "2",
-		fontSize: "xs",
-		flexWrap: "wrap",
-	},
-	eventAddressLabel: {
-		color: "fg.muted",
-	},
-	eventAddressValue: {
-		fontFamily: "mono",
-		color: "fg.subtle",
-	},
-	eventMeta: {
-		textAlign: "right",
-	},
-	eventBlockLink: {
-		fontSize: "sm",
-		color: "accent.default",
-		_hover: { textDecoration: "underline" },
-	},
-	eventTime: {
-		fontSize: "xs",
-		color: "fg.muted",
-	},
-	eventsErrorCard: {
-		display: "flex",
-		flexDirection: "column",
-		alignItems: "center",
-		gap: "3",
-		py: "8",
-	},
-	eventsErrorIcon: {
-		height: "12",
-		width: "12",
-		color: "fg.muted",
-	},
-	eventsErrorText: {
-		textAlign: "center",
-	},
-	eventsErrorTitle: {
-		fontWeight: "medium",
-		marginBottom: "1",
-	},
-	eventsErrorDesc: {
-		fontSize: "sm",
-		color: "fg.muted",
-	},
-	eventsEmptyCard: {
-		display: "flex",
-		flexDirection: "column",
-		alignItems: "center",
-		gap: "3",
-		py: "8",
-	},
-	eventsEmptyIcon: {
-		height: "12",
-		width: "12",
-		color: "republicGreen.default",
-	},
-	eventsEmptyText: {
-		textAlign: "center",
-	},
-	eventsEmptyTitle: {
-		fontWeight: "medium",
-		marginBottom: "1",
-	},
-	eventsEmptyDesc: {
-		fontSize: "sm",
-		color: "fg.muted",
 	},
 }

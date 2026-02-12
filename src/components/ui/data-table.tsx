@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { type ReactNode, useState } from "react"
 import {
 	type ColumnDef,
 	type SortingState,
@@ -22,13 +22,6 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200]
 
@@ -100,7 +93,7 @@ export function DataTable<T>({
 	data,
 	sorting,
 	onSortingChange,
-	pageSize = 20,
+	pageSize = 50,
 	onPageSizeChange,
 	pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 	isLoading = false,
@@ -114,19 +107,25 @@ export function DataTable<T>({
 	hidePagination = false,
 }: DataTableProps<T>) {
 	const isServerSide = externalTotalRows !== undefined
+	const [pageIndex, setPageIndex] = useState(0)
 
 	const table = useReactTable({
 		data,
 		columns,
 		state: {
 			sorting,
-			// For server-side, don't paginate internally - show all provided rows
 			pagination: isServerSide
 				? { pageIndex: 0, pageSize: data.length || pageSize }
-				: { pageIndex: 0, pageSize },
+				: { pageIndex, pageSize },
 			columnVisibility,
 		},
 		onSortingChange,
+		onPaginationChange: (updater) => {
+			if (!isServerSide && typeof updater === "function") {
+				const next = updater({ pageIndex, pageSize })
+				setPageIndex(next.pageIndex)
+			}
+		},
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		...(isServerSide ? {} : { getPaginationRowModel: getPaginationRowModel() }),
@@ -273,32 +272,37 @@ export function DataTable<T>({
 						<span className={css({ fontSize: "sm", color: "fg.muted", whiteSpace: "nowrap" })}>
 							Rows per page
 						</span>
-						<Select
-							value={String(pageSize)}
-							onValueChange={(val) => {
-								const newSize = Number(val)
+						<select
+							value={pageSize}
+							onChange={(e) => {
+								const newSize = Number(e.target.value)
 								onPageSizeChange?.(newSize)
 								if (!isServerSide) {
-									table.setPageSize(newSize)
-									table.setPageIndex(0)
-								}
-								// For server-side, the parent handles re-fetching with new page size
-								if (isServerSide) {
+									setPageIndex(0)
+								} else {
 									onPageChange?.(0)
 								}
 							}}
+							className={css({
+								h: "9",
+								w: "18",
+								fontSize: "sm",
+								bg: "bg.default",
+								color: "fg.default",
+								borderWidth: "1px",
+								borderColor: "border.default",
+								rounded: "md",
+								px: "2",
+								cursor: "pointer",
+								_focus: { outline: "none", ringWidth: "2", ringColor: "accent.default" },
+							})}
 						>
-							<SelectTrigger className={css({ w: "18", h: "9", fontSize: "sm" })}>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{pageSizeOptions.map((size) => (
-									<SelectItem key={size} value={String(size)}>
-										{size}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+							{pageSizeOptions.map((size) => (
+								<option key={size} value={size}>
+									{size}
+								</option>
+							))}
+						</select>
 						<span className={css({ fontSize: "sm", color: "fg.muted" })}>
 							{totalRows.toLocaleString()} total
 						</span>
