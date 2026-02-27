@@ -1,6 +1,6 @@
 {
   "apiUrl": "https://yaci-explorer-apis.fly.dev",
-  "chainRestEndpoint": "https://rest.republicai.io",
+  "chainRestEndpoint": "https://api-t.republic.vinjan-inc.com",
   "evmRpcEndpoint": "",
   "evmEnabled": true,
   "ibcEnabled": true,
