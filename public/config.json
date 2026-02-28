@@ -1,7 +1,7 @@
 {
   "apiUrl": "https://yaci-explorer-4j9nuqamm-vinjan23s-projects.vercel.app",
   "chainRestEndpoint": "https://api-test.republic.vinjan-inc.com",
-  "evmRpcEndpoint": "",
+  "evmRpcEndpoint": "https://evm-rpc.republicai.io",
   "evmEnabled": true,
   "ibcEnabled": true,
   "wasmEnabled": false,
