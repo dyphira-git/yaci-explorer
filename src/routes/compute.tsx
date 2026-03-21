@@ -163,6 +163,11 @@ export default function ComputePage() {
 	const [benchPage, setBenchPage] = useState(0)
 	const [statusFilter, setStatusFilter] = useState<string | undefined>()
 	const limit = 20
+	const { data: leaderboardData, isLoading: leaderboardLoading } = useQuery({
+		queryKey: ["compute-leaderboard"],
+		queryFn: () => api.getComputeLeaderboard(100),
+		staleTime: 30000,
+	})
 
 	const { data: stats, isLoading: statsLoading } = useQuery({
 		queryKey: ["compute-stats"],
@@ -405,6 +410,25 @@ export default function ComputePage() {
 			)}
 		</div>
 	)
+		{/* Leaderboard Tab */}
+		{activeTab === "leaderboard" && (
+			<Card>
+				<CardHeader>
+					<CardTitle>Compute Leaderboard</CardTitle>
+					<CardDescription>Validators ranked by completed jobs</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<DataTable
+						columns={leaderboardColumns}
+						data={leaderboardData ?? []}
+						isLoading={leaderboardLoading}
+						getRowId={(row) => row.target_validator}
+						hidePagination
+					/>
+				</CardContent>
+			</Card>
+		)}
+
 }
 
 const styles = {
