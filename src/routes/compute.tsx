@@ -15,11 +15,11 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/ui/data-table"
 import { AddressChip } from "@/components/AddressChip"
-import { api, type ComputeJob, type ComputeBenchmark } from "@/lib/api"
+import { api, type ComputeJob, type ComputeBenchmark, type ComputeLeaderboardEntry } from "@/lib/api"
 import { formatTimeAgo } from "@/lib/utils"
 import { css } from "@/styled-system/css"
 
-type TabId = "jobs" | "benchmarks"
+type TabId = "jobs" | "benchmarks" | "leaderboard"
 
 /**
  * Returns the appropriate badge variant for a compute job/benchmark status
@@ -123,6 +123,38 @@ const benchmarkColumns: ColumnDef<ComputeBenchmark, any>[] = [
 			</span>
 		),
 	}),
+]
+
+
+const lbHelper = createColumnHelper<ComputeLeaderboardEntry>()
+const leaderboardColumns: ColumnDef<ComputeLeaderboardEntry, any>[] = [
+        lbHelper.accessor("target_validator", {
+                header: "Validator",
+                enableSorting: false,
+                cell: ({ row }) => (
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <span style={{ fontWeight: 600 }}>{row.original.moniker || "—"}</span>
+                                <AddressChip address={row.original.target_validator} />
+                        </div>
+                ),
+        }),
+        lbHelper.accessor("total_jobs", {
+                header: "Total Jobs",
+                enableSorting: false,
+                cell: ({ row }) => row.original.total_jobs.toLocaleString(),
+        }),
+        lbHelper.accessor("completed_jobs", {
+                header: "Completed",
+                enableSorting: false,
+                cell: ({ row }) => (
+                        <Badge variant="success">{row.original.completed_jobs.toLocaleString()}</Badge>
+                ),
+        }),
+        lbHelper.accessor("success_rate", {
+                header: "Success Rate",
+                enableSorting: false,
+                cell: ({ row }) => `${row.original.success_rate}%`,
+        }),
 ]
 
 export default function ComputePage() {
