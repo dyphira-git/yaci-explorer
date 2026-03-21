@@ -271,6 +271,15 @@ export default function ComputePage() {
 				>
 					Benchmarks
 				</button>
+				<button
+					type="button"
+					className={css(
+						activeTab === "leaderboard" ? styles.tabActive : styles.tabInactive
+					)}
+					onClick={() => setActiveTab("leaderboard")}
+				>
+					Leaderboard
+				</button>
 
 				{/* Status filter */}
 				<div className={css(styles.filterRight)}>
