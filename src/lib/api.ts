@@ -380,6 +380,15 @@ export interface ValidatorWithSigningStats {
 	blocks_missed: number
 }
 
+
+export interface ComputeLeaderboardEntry {
+        target_validator: string
+        moniker: string | null
+        total_jobs: number
+        completed_jobs: number
+        success_rate: number
+}
+
 export interface ValidatorLeaderboardEntry {
 	operator_address: string
 	moniker: string
