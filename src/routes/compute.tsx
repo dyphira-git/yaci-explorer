@@ -417,8 +417,6 @@ export default function ComputePage() {
 					</CardContent>
 				</Card>
 			)}
-		</div>
-	)
 		{/* Leaderboard Tab */}
 		{activeTab === "leaderboard" && (
 			<Card>
@@ -437,6 +435,7 @@ export default function ComputePage() {
 				</CardContent>
 			</Card>
 		)}
+		</div>
 	)
 }
 
