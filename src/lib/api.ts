@@ -389,6 +389,14 @@ export interface ComputeLeaderboardEntry {
         success_rate: number
 }
 
+export interface ComputeLeaderboardEntry {
+	target_validator: string
+	moniker: string | null
+	total_jobs: number
+	completed_jobs: number
+	success_rate: number
+}
+
 export interface ValidatorLeaderboardEntry {
 	operator_address: string
 	moniker: string
@@ -1057,6 +1065,12 @@ export class YaciClient {
 	async getComputeStats(): Promise<ComputeStats> {
 		const result = await this.query<ComputeStats[]>('compute_stats')
 		return result[0]
+	}
+
+	async getComputeLeaderboard(limit = 100): Promise<ComputeLeaderboardEntry[]> {
+		return this.query('compute_leaderboard', {
+			limit: String(limit)
+		})
 	}
 
 	async getValidatorIPFS(limit = 50, offset = 0): Promise<ValidatorIPFS[]> {
