@@ -437,7 +437,7 @@ export default function ComputePage() {
 				</CardContent>
 			</Card>
 		)}
-
+	)
 }
 
 const styles = {
