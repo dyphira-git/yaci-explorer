@@ -717,11 +717,11 @@ export class YaciClient {
 	}
 
 	async getDistinctMessageTypes(): Promise<string[]> {
-		const result = await this.query<Array<{ type: string }>>('message_type_stats', {
-			select: 'type',
+		const result = await this.query<Array<{ message_type: string }>>('message_type_stats', {
+			select: 'message_type',
 			order: 'count.desc'
 		})
-		return result.map(r => r.type)
+		return result.map(r => r.message_type)
 	}
 
 	async getBlockTimeAnalysis(limit = 100): Promise<{ avg: number; min: number; max: number }> {
