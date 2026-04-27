@@ -56,9 +56,9 @@ export interface BlockInterval {
 }
 
 // Configuration
-const config = getConfig()
-const REST_ENDPOINT = config.chainRestEndpoint
-const BASE_URL = config.apiUrl
+// Configuration helpers - call at runtime to get latest config
+const getRestEndpoint = () => getConfig().chainRestEndpoint
+const getBaseUrl = () => getConfig().apiUrl
 
 // Time utilities
 function getStartDate(range: TimeRange): Date {
@@ -93,7 +93,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 // Core data fetchers
 async function getTotalTransactions(): Promise<number> {
-  const response = await fetch(`${BASE_URL}/transactions_main?select=id&limit=1`, {
+  const response = await fetch(`${getBaseUrl()}/transactions_main?select=id&limit=1`, {
     headers: { Prefer: 'count=exact' },
   })
   if (!response.ok) return 0
@@ -113,7 +113,7 @@ export async function getTransactionsInTimeRange(range: TimeRange): Promise<numb
 
   const startDate = getStartDate(range)
   const response = await fetch(
-    `${BASE_URL}/transactions_main?timestamp=gte.${startDate.toISOString()}&select=id&limit=1`,
+    `${getBaseUrl()}/transactions_main?timestamp=gte.${startDate.toISOString()}&select=id&limit=1`,
     { headers: { Prefer: 'count=exact' } }
   )
 
@@ -137,10 +137,10 @@ export async function getTPS(range: TimeRange = { value: 1, unit: 'minutes' }): 
 
 async function getActiveValidators(_chainInfo: ChainInfo): Promise<number> {
   // Prefer staking REST if provided
-  if (REST_ENDPOINT) {
+  if (getRestEndpoint()) {
     try {
       const data = await fetchJson<{ validators: unknown[] }>(
-        `${REST_ENDPOINT}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED`
+        `${getRestEndpoint()}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED`
       )
       return Array.isArray(data.validators) ? data.validators.length : 0
     } catch {
@@ -162,10 +162,10 @@ function getValidatorCountFromBlock(block: any): number {
 }
 
 async function getTotalSupply(chainInfo: ChainInfo): Promise<string | null> {
-  if (!REST_ENDPOINT) return null
+  if (!getRestEndpoint()) return null
   try {
     const data = await fetchJson<{ amount: { amount: string } }>(
-      `${REST_ENDPOINT}/cosmos/bank/v1beta1/supply/by_denom?denom=${chainInfo.baseDenom}`
+      `${getRestEndpoint()}/cosmos/bank/v1beta1/supply/by_denom?denom=${chainInfo.baseDenom}`
     )
     const raw = data.amount?.amount ? parseFloat(data.amount.amount) : NaN
     if (Number.isNaN(raw)) return null
@@ -178,7 +178,7 @@ async function getTotalSupply(chainInfo: ChainInfo): Promise<string | null> {
 
 async function getUniqueAddresses(): Promise<number | null> {
   const response = await fetch(
-    `${BASE_URL}/messages_main?select=sender&distinct=sender&sender=not.is.null&limit=1`,
+    `${getBaseUrl()}/messages_main?select=sender&distinct=sender&sender=not.is.null&limit=1`,
     { headers: { Prefer: 'count=exact' } }
   )
   if (!response.ok) return null
@@ -251,8 +251,8 @@ export async function getNetworkMetrics(): Promise<NetworkMetrics> {
   if (cached) return cached
 
   const [blocksResponse, txResponse] = await Promise.all([
-    fetch(`${BASE_URL}/blocks_raw?order=id.desc&limit=100`, { headers: { Prefer: 'count=exact' } }),
-    fetch(`${BASE_URL}/transactions_main?order=height.desc&limit=1000`, { headers: { Prefer: 'count=exact' } }),
+    fetch(`${getBaseUrl()}/blocks_raw?order=id.desc&limit=100`, { headers: { Prefer: 'count=exact' } }),
+    fetch(`${getBaseUrl()}/transactions_main?order=height.desc&limit=1000`, { headers: { Prefer: 'count=exact' } }),
   ])
 
   const blocks = await blocksResponse.json()
@@ -293,7 +293,7 @@ export async function getBlockIntervals(limit = 100): Promise<BlockInterval[]> {
   const cached = cache.get<BlockInterval[]>(cacheKey)
   if (cached) return cached
 
-  const response = await fetch(`${BASE_URL}/blocks_raw?order=id.desc&limit=${limit}`)
+  const response = await fetch(`${getBaseUrl()}/blocks_raw?order=id.desc&limit=${limit}`)
   if (!response.ok) return []
 
   const blocks = await response.json()
